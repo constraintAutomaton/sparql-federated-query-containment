@@ -1,0 +1,14 @@
+{
+  "name": "materialized_view_query_containment",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "sparqlalgebrajs": "^5.0.0"
+  }
+}
