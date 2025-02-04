@@ -1,0 +1,80 @@
+@Article{Chekuri2000,
+  author   = {Chandra Chekuri and Anand Rajaraman},
+  journal  = {Theoretical Computer Science},
+  title    = {Conjunctive query containment revisited},
+  year     = {2000},
+  issn     = {0304-3975},
+  number   = {2},
+  pages    = {211-229},
+  volume   = {239},
+  abstract = {We consider the problems of conjunctive query containment and minimization, which are known to be NP-complete, and show that these problems can be solved in polynomial time for the class of acyclic queries. We then generalize the notion of acyclicity and define a parameter called query width that captures the “degree of cyclicity” of a query: in particular, a query is acyclic if and only if its query width is 1. We give algorithms for containment and minimization that run in time polynomial in nk, where n is the input size and k is the query width. These algorithms naturally generalize those for acyclic queries, and are of practical significance because many queries have small query width compared to their sizes. We show that good bounds on the query width of Q can be obtained using the treewidth of the incidence graph of Q. We then consider the problem of finding an equivalent query to a given conjunctive query Q that has the least number of subgoals. We show that a polynomial-time approximation algorithm is unlikely for this problem. Finally, we apply our containment algorithm to the practically important problem of finding equivalent rewritings of a query using a set of materialized views.},
+  doi      = {https://doi.org/10.1016/S0304-3975(99)00220-0},
+  url      = {https://www.sciencedirect.com/science/article/pii/S0304397599002200},
+}
+
+@Article{Halevy2001,
+  author    = {Halevy, Alon Y.},
+  journal   = {The VLDB Journal},
+  title     = {Answering queries using views: A survey},
+  year      = {2001},
+  issn      = {1066-8888},
+  month     = dec,
+  number    = {4},
+  pages     = {270–294},
+  volume    = {10},
+  doi       = {10.1007/s007780100054},
+  publisher = {Springer Science and Business Media LLC},
+  url       = {http://dx.doi.org/10.1007/s007780100054},
+}
+
+
+
+
+
+
+@Article{Tarjan1984,
+  author   = {Tarjan, Robert E. and Yannakakis, Mihalis},
+  journal  = {SIAM Journal on Computing},
+  title    = {Simple Linear-Time Algorithms to Test Chordality of Graphs, Test Acyclicity of Hypergraphs, and Selectively Reduce Acyclic Hypergraphs},
+  year     = {1984},
+  number   = {3},
+  pages    = {566-579},
+  volume   = {13},
+  abstract = {Chordal graphs arise naturally in the study of Gaussian elimination on sparse symmetric matrices; acyclic hypergraphs arise in the study of relational data bases. Rose, Tarjan and Lueker [SIAM J. Comput., 5 (1976), pp. 266–283] have given a linear-time algorithm to test whether a graph is chordal, which Yannakakis has modified to test whether a hypergraph is acyclic. Here we develop a simplified linear-time test for graph chordality and hypergraph acyclicity. The test uses a new kind of graph (and hypergraph) search, which we call maximum cardinality search A variant of the method gives a way to selectively reduce acyclic hypergraphs, which is needed for evaluating queries in acyclic relational data bases.},
+  doi      = {10.1137/0213035},
+  eprint   = {https://doi.org/10.1137/0213035},
+  url      = {https://doi.org/10.1137/0213035},
+}
+
+@InProceedings{10.1145/2594538.2594542,
+  author    = {Pichler, Reinhard and Skritek, Sebastian},
+  booktitle = {Proceedings of the 33rd ACM SIGMOD-SIGACT-SIGART Symposium on Principles of Database Systems},
+  title     = {Containment and equivalence of well-designed SPARQL},
+  year      = {2014},
+  address   = {New York, NY, USA},
+  pages     = {39–50},
+  publisher = {Association for Computing Machinery},
+  series    = {PODS '14},
+  abstract  = {Query containment and query equivalence constitute important computational problems in the context of static query analysis and optimization. While these problems have been intensively studied for fragments of relational calculus, almost no works exist for the semantic web query language SPARQL. In this paper, we carry out a comprehensive complexity analysis of containment and equivalence for several fragments of SPARQL: we start with the fundamental fragment of well-designed SPARQL restricted to the AND and OPTIONAL operator. We then study basic extensions in the form of the UNION operator and/or projection. The results obtained range from NP-completeness to undecidability.},
+  doi       = {10.1145/2594538.2594542},
+  isbn      = {9781450323758},
+  keywords  = {RDF, SPARQL, query containment, semantic web},
+  location  = {Snowbird, Utah, USA},
+  numpages  = {12},
+  url       = {https://doi.org/10.1145/2594538.2594542},
+}
+
+@InProceedings{Perez2006,
+  author    = {P{\'e}rez, Jorge and Arenas, Marcelo and Gutierrez, Claudio},
+  booktitle = {The Semantic Web - ISWC 2006},
+  title     = {Semantics and Complexity of SPARQL},
+  year      = {2006},
+  address   = {Berlin, Heidelberg},
+  editor    = {Cruz, Isabel and Decker, Stefan and Allemang, Dean and Preist, Chris and Schwabe, Daniel and Mika, Peter and Uschold, Mike and Aroyo, Lora M.},
+  pages     = {30--43},
+  publisher = {Springer Berlin Heidelberg},
+  abstract  = {SPARQL is the W3C candidate recommendation query language for RDF. In this paper we address systematically the formal study of SPARQL, concentrating in its graph pattern facility. We consider for this study simple RDF graphs without special semantics for literals and a simplified version of filters which encompasses all the main issues. We provide a compositional semantics, prove there are normal forms, prove complexity bounds, among others that the evaluation of SPARQL patterns is PSPACE-complete, compare our semantics to an alternative operational semantics, give simple and natural conditions when both semantics coincide and discuss optimization procedures.},
+  isbn      = {978-3-540-49055-5},
+}
+
+@Comment{jabref-meta: databaseType:bibtex;}

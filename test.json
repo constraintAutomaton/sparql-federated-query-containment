@@ -1,0 +1,352 @@
+{
+  "type": "project",
+  "input": {
+    "type": "join",
+    "input": [
+      {
+        "type": "bgp",
+        "patterns": [
+          {
+            "termType": "Quad",
+            "value": "",
+            "subject": {
+              "termType": "Variable",
+              "value": "swisslipid"
+            },
+            "predicate": {
+              "termType": "NamedNode",
+              "value": "http://www.w3.org/2002/07/owl#equivalentClass"
+            },
+            "object": {
+              "termType": "Variable",
+              "value": "chebi"
+            },
+            "graph": {
+              "termType": "DefaultGraph",
+              "value": ""
+            },
+            "type": "pattern"
+          }
+        ]
+      },
+      {
+        "type": "service",
+        "input": {
+          "type": "join",
+          "input": [
+            {
+              "type": "bgp",
+              "patterns": [
+                {
+                  "termType": "Quad",
+                  "value": "",
+                  "subject": {
+                    "termType": "Variable",
+                    "value": "rhea"
+                  },
+                  "predicate": {
+                    "termType": "NamedNode",
+                    "value": "http://rdf.rhea-db.org/side"
+                  },
+                  "object": {
+                    "termType": "Variable",
+                    "value": "var0"
+                  },
+                  "graph": {
+                    "termType": "DefaultGraph",
+                    "value": ""
+                  },
+                  "type": "pattern"
+                },
+                {
+                  "termType": "Quad",
+                  "value": "",
+                  "subject": {
+                    "termType": "Variable",
+                    "value": "var0"
+                  },
+                  "predicate": {
+                    "termType": "NamedNode",
+                    "value": "http://rdf.rhea-db.org/contains"
+                  },
+                  "object": {
+                    "termType": "Variable",
+                    "value": "var1"
+                  },
+                  "graph": {
+                    "termType": "DefaultGraph",
+                    "value": ""
+                  },
+                  "type": "pattern"
+                },
+                {
+                  "termType": "Quad",
+                  "value": "",
+                  "subject": {
+                    "termType": "Variable",
+                    "value": "var1"
+                  },
+                  "predicate": {
+                    "termType": "NamedNode",
+                    "value": "http://rdf.rhea-db.org/compound"
+                  },
+                  "object": {
+                    "termType": "Variable",
+                    "value": "compound"
+                  },
+                  "graph": {
+                    "termType": "DefaultGraph",
+                    "value": ""
+                  },
+                  "type": "pattern"
+                }
+              ]
+            },
+            {
+              "type": "path",
+              "subject": {
+                "termType": "Variable",
+                "value": "compound"
+              },
+              "predicate": {
+                "type": "alt",
+                "input": [
+                  {
+                    "type": "link",
+                    "iri": {
+                      "termType": "NamedNode",
+                      "value": "http://rdf.rhea-db.org/chebi"
+                    }
+                  },
+                  {
+                    "type": "seq",
+                    "input": [
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/reactivePart"
+                        }
+                      },
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/chebi"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "seq",
+                    "input": [
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/underlyingChebi"
+                        }
+                      },
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/chebi"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              "object": {
+                "termType": "Variable",
+                "value": "metabolite"
+              },
+              "graph": {
+                "termType": "DefaultGraph",
+                "value": ""
+              }
+            },
+            {
+              "type": "path",
+              "subject": {
+                "termType": "Variable",
+                "value": "compound2"
+              },
+              "predicate": {
+                "type": "alt",
+                "input": [
+                  {
+                    "type": "link",
+                    "iri": {
+                      "termType": "NamedNode",
+                      "value": "http://rdf.rhea-db.org/chebi"
+                    }
+                  },
+                  {
+                    "type": "seq",
+                    "input": [
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/reactivePart"
+                        }
+                      },
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/chebi"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "seq",
+                    "input": [
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/underlyingChebi"
+                        }
+                      },
+                      {
+                        "type": "link",
+                        "iri": {
+                          "termType": "NamedNode",
+                          "value": "http://rdf.rhea-db.org/chebi"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              "object": {
+                "termType": "Variable",
+                "value": "metabolite"
+              },
+              "graph": {
+                "termType": "DefaultGraph",
+                "value": ""
+              }
+            }
+          ]
+        },
+        "name": {
+          "termType": "NamedNode",
+          "value": "https://sparql.rhea-db.org/sparql"
+        },
+        "silent": false
+      },
+      {
+        "type": "service",
+        "input": {
+          "type": "bgp",
+          "patterns": [
+            {
+              "termType": "Quad",
+              "value": "",
+              "subject": {
+                "termType": "Variable",
+                "value": "catalyticActivityAnnotation"
+              },
+              "predicate": {
+                "termType": "NamedNode",
+                "value": "http://purl.uniprot.org/core/catalyticActivity"
+              },
+              "object": {
+                "termType": "Variable",
+                "value": "var2"
+              },
+              "graph": {
+                "termType": "DefaultGraph",
+                "value": ""
+              },
+              "type": "pattern"
+            },
+            {
+              "termType": "Quad",
+              "value": "",
+              "subject": {
+                "termType": "Variable",
+                "value": "var2"
+              },
+              "predicate": {
+                "termType": "NamedNode",
+                "value": "http://purl.uniprot.org/core/catalyzedReaction"
+              },
+              "object": {
+                "termType": "Variable",
+                "value": "rhea"
+              },
+              "graph": {
+                "termType": "DefaultGraph",
+                "value": ""
+              },
+              "type": "pattern"
+            },
+            {
+              "termType": "Quad",
+              "value": "",
+              "subject": {
+                "termType": "Variable",
+                "value": "protein"
+              },
+              "predicate": {
+                "termType": "NamedNode",
+                "value": "http://purl.uniprot.org/core/annotation"
+              },
+              "object": {
+                "termType": "Variable",
+                "value": "catalyticActivityAnnotation"
+              },
+              "graph": {
+                "termType": "DefaultGraph",
+                "value": ""
+              },
+              "type": "pattern"
+            },
+            {
+              "termType": "Quad",
+              "value": "",
+              "subject": {
+                "termType": "Variable",
+                "value": "protein"
+              },
+              "predicate": {
+                "termType": "NamedNode",
+                "value": "http://purl.uniprot.org/core/organism"
+              },
+              "object": {
+                "termType": "Variable",
+                "value": "organism"
+              },
+              "graph": {
+                "termType": "DefaultGraph",
+                "value": ""
+              },
+              "type": "pattern"
+            }
+          ]
+        },
+        "name": {
+          "termType": "NamedNode",
+          "value": "https://sparql.uniprot.org/sparql"
+        },
+        "silent": false
+      }
+    ]
+  },
+  "variables": [
+    {
+      "termType": "Variable",
+      "value": "swisslipid"
+    },
+    {
+      "termType": "Variable",
+      "value": "organism"
+    }
+  ]
+}

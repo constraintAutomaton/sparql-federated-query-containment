@@ -1,5 +1,5 @@
 import { Algebra, Util } from 'sparqlalgebrajs';
-
+import { type Result } from './util';
 /**
  * create a query by deleted a triple patterns with predicates not in the source predicate list
  * @param {Algebra.Operation} query - Query to filtered
@@ -15,7 +15,7 @@ export function createRelevantSubQuery(query: Algebra.Operation, sourcePredicate
                     patternResulting.push(pattern);
                 }
             }
-            const new_op = Util.mapOperation(op,{})
+            const new_op = Util.mapOperation(op, {})
             new_op.patterns = patternResulting;
             return {
                 result: new_op,
@@ -38,7 +38,7 @@ export function createRelevantSubQuery(query: Algebra.Operation, sourcePredicate
                     inputOfJoin.push(el);
                 }
             }
-            const new_op = Util.mapOperation(op,{});
+            const new_op = Util.mapOperation(op, {});
             new_op.input = inputOfJoin;
             return {
                 result: new_op,
@@ -59,4 +59,58 @@ export function createRelevantSubQuery(query: Algebra.Operation, sourcePredicate
  */
 export function isSupportedQuery(query: Algebra.Operation): boolean {
     return true;
+}
+
+export function isQueryAcycle(query: Algebra.Operation): boolean {
+    return true;
+}
+
+export function isQueryWellDesigned(query: Algebra.Operation): boolean {
+    return true;
+}
+
+export function hasPropertyPath(query: Algebra.Operation): boolean {
+    let hasPropertyPath = false;
+    const hasPropertyPathFunc = (_op: Algebra.Operation) => {
+        hasPropertyPath = true
+        return !hasPropertyPath;
+    };
+    Util.recurseOperation(query, {
+        [Algebra.types.INV]: hasPropertyPathFunc,
+        [Algebra.types.SEQ]: hasPropertyPathFunc,
+        [Algebra.types.ALT]: hasPropertyPathFunc,
+        [Algebra.types.ZERO_OR_MORE_PATH]: hasPropertyPathFunc,
+        [Algebra.types.ONE_OR_MORE_PATH]: hasPropertyPathFunc,
+        [Algebra.types.ZERO_OR_ONE_PATH]: hasPropertyPathFunc,
+        [Algebra.types.NPS]: hasPropertyPathFunc,
+        [Algebra.types.LINK]: hasPropertyPathFunc,
+    })
+    return hasPropertyPath;
+}
+
+export interface IRelation {
+    relation: string,
+    argument_s: string,
+    argument_o: string,
+}
+
+export type ConjectiveQuery = IRelation[];
+
+export function convertSPARQLIntoRelationalAlgebra(query: Algebra.Operation): Result<ConjectiveQuery> {
+    if (hasPropertyPath(query)) {
+        return { error: "Do not support queries with property path currently" };
+    }
+    const relationalQuery: ConjectiveQuery = [];
+    Util.recurseOperation(query, {
+        [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
+            const relation: IRelation = {
+                relation: op.predicate.value,
+                argument_s: op.subject.value,
+                argument_o: op.object.value
+            }
+            relationalQuery.push(relation);
+            return false;
+        }
+    })
+    return { result: relationalQuery };
 }
