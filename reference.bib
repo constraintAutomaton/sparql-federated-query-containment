@@ -91,4 +91,30 @@
   url       = {https://www.sciencedirect.com/science/article/pii/B9780124160446000028},
 }
 
+@InProceedings{WudageChekol2013,
+  author    = {Wudage Chekol, Melisachew and Euzenat, J{\'e}r{\^o}me and Genev{\`e}s, Pierre and Laya{\"i}da, Nabil},
+  booktitle = {The Semantic Web -- ISWC 2013},
+  title     = {Evaluating and Benchmarking SPARQL Query Containment Solvers},
+  year      = {2013},
+  address   = {Berlin, Heidelberg},
+  editor    = {Alani, Harith and Kagal, Lalana and Fokoue, Achille and Groth, Paul and Biemann, Chris and Parreira, Josiane Xavier and Aroyo, Lora and Noy, Natasha and Welty, Chris and Janowicz, Krzysztof},
+  pages     = {408--423},
+  publisher = {Springer Berlin Heidelberg},
+  abstract  = {Query containment is the problem of deciding if the answers to a query are included in those of another query for any queried database. This problem is very important for query optimization purposes. In the SPARQL context, it can be equally useful. This problem has recently been investigated theoretically and some query containment solvers are available. Yet, there were no benchmarks to compare theses systems and foster their improvement. In order to experimentally assess implementation strengths and limitations, we provide a first SPARQL containment test benchmark. It has been designed with respect to both the capabilities of existing solvers and the study of typical queries. Some solvers support optional constructs and cycles, while other solvers support projection, union of conjunctive queries and RDF Schemas. No solver currently supports all these features or OWL entailment regimes. The study of query demographics on DBPedia logs shows that the vast majority of queries are acyclic and a significant part of them uses UNION or projection. We thus test available solvers on their domain of applicability on three different benchmark suites. These experiments show that (i) tested solutions are overall functionally correct, (ii) in spite of its complexity, SPARQL query containment is practicable for acyclic queries, (iii) state-of-the-art solvers are at an early stage both in terms of capability and implementation.},
+  isbn      = {978-3-642-41338-4},
+}
+
+@InProceedings{Stadler2018,
+  author    = {Stadler, Claus and Saleem, Muhammad and Ngomo, Axel-Cyrille Ngonga and Lehmann, Jens},
+  booktitle = {Web Engineering},
+  title     = {Efficiently Pinpointing SPARQL Query Containments},
+  year      = {2018},
+  address   = {Cham},
+  editor    = {Mikkonen, Tommi and Klamma, Ralf and Hern{\'a}ndez, Juan},
+  pages     = {210--224},
+  publisher = {Springer International Publishing},
+  abstract  = {Query containment is a fundamental problem in database research, which is relevant for many tasks such as query optimisation, view maintenance and query rewriting. For example, recent SPARQL engines built on Big Data frameworks that precompute solutions to frequently requested query patterns, are conceptually an application of query containment. We present an approach for solving the query containment problem for SPARQL queries -- the W3C standard query language for RDF datasets. Solving the query containment problem can be reduced to the problem of deciding whether a sub graph isomorphism exists between the normalized algebra expressions of two queries.},
+  isbn      = {978-3-319-91662-0},
+}
+
 @Comment{jabref-meta: databaseType:bibtex;}
