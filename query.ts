@@ -1,5 +1,6 @@
 import { Algebra, Util } from 'sparqlalgebrajs';
 import { type Result } from './util';
+import { isomorphic } from "rdf-isomorphic";
 /**
  * create a query by deleted a triple patterns with predicates not in the source predicate list
  * @param {Algebra.Operation} query - Query to filtered
@@ -69,6 +70,10 @@ export function isQueryWellDesigned(query: Algebra.Operation): boolean {
     return true;
 }
 
+export function isConjectiveQuery(query: Algebra.Operation): boolean {
+    return true;
+}
+
 export function hasPropertyPath(query: Algebra.Operation): boolean {
     let hasPropertyPath = false;
     const hasPropertyPathFunc = (_op: Algebra.Operation) => {
@@ -114,3 +119,111 @@ export function convertSPARQLIntoRelationalAlgebra(query: Algebra.Operation): Re
     })
     return { result: relationalQuery };
 }
+
+export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Operation): Result<{ queries: [Algebra.Operation, Algebra.Operation], mapping: Map<string, string> }> {
+    const queryGraph1 = populateQueryGraph(query1);
+    const queryGraph2 = populateQueryGraph(query2);
+    const mapping: Map<string, string> = new Map();
+
+    for (const tp2 of queryGraph2.associated_triple_patterns) {
+        for (const tp1 of queryGraph1.associated_triple_patterns) {
+            const isIsomorphic = isomorphic([tp1], [tp2]);
+            if (isIsomorphic) {
+                if (tp2.subject.termType === "Variable") {
+                    mapping.set(tp1.subject.value, tp2.subject.value);
+                }
+                if (tp2.predicate.termType === "Variable") {
+                    mapping.set(tp1.predicate.value, tp2.predicate.value);
+                }
+                if (tp2.object.termType === "Variable") {
+                    mapping.set(tp1.object.value, tp2.object.value);
+                }
+                if (tp2.graph.termType === "Variable") {
+                    mapping.set(tp1.graph.value, tp2.graph.value);
+                }
+            }
+        }
+    }
+
+    const newQuery2 = renameVariableInQuery(query2, mapping);
+    return {
+        result: {
+            queries: [query1, newQuery2],
+            mapping
+        }
+    }
+
+}
+
+function renameVariableInQuery(query: Algebra.Operation, mapping: Map<string, string>): Algebra.Operation {
+    const deepCopyQuery = Util.mapOperation(query, {});
+    Util.recurseOperation(deepCopyQuery, {
+        [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
+
+            if (op.subject.termType === "Variable") {
+                const normalizedVariable = mapping.get(op.subject.value);
+                if (normalizedVariable !== undefined) {
+                    op.subject.value = normalizedVariable;
+                }
+            }
+            if (op.predicate.termType === "Variable") {
+                const normalizedVariable = mapping.get(op.predicate.value);
+                if (normalizedVariable !== undefined) {
+                    op.subject.value = normalizedVariable;
+                }
+            }
+            if (op.object.termType === "Variable") {
+                const normalizedVariable = mapping.get(op.object.value);
+                if (normalizedVariable !== undefined) {
+                    op.subject.value = normalizedVariable;
+                }
+            }
+            return false;
+        }
+    });
+    return deepCopyQuery;
+}
+
+function populateQueryGraph(query: Algebra.Operation): IQueryGraph {
+    const queryGraph: IQueryGraph = {
+        relevant_variables: new Set<string>,
+        associated_triple_patterns: new Array<Algebra.Pattern>
+    };
+
+    Util.recurseOperation(query, {
+        [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
+
+            if (op.subject.termType === "Variable") {
+                queryGraph.relevant_variables.add(op.subject.value);
+            }
+            if (op.predicate.termType === "Variable") {
+                queryGraph.relevant_variables.add(op.predicate.value);
+            }
+            if (op.object.termType === "Variable") {
+                queryGraph.relevant_variables.add(op.object.value);
+            }
+            if (op.object.termType === "Variable" ||
+                op.predicate.termType === "Variable" ||
+                op.subject.termType === "Variable"
+            ) {
+                queryGraph.associated_triple_patterns.push(op)
+            }
+            return false;
+        }
+    });
+    return queryGraph;
+}
+
+interface IQueryGraph {
+    relevant_variables: Set<string>,
+    associated_triple_patterns: Algebra.Pattern[]
+}
+
+export interface INormalizeQueryResult {
+    queries: {
+        query_1: Algebra.Operation,
+        query_2: Algebra.Operation
+    },
+    mapping: Map<string, string>
+}
+
