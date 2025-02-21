@@ -53,27 +53,6 @@ export function createRelevantSubQuery(query: Algebra.Operation, sourcePredicate
     return relevantQuerySection;
 }
 
-/**
- * Determine if the query does not contain operators that we do not support
- * @param {Algebra.Operation} query
- * @returns {boolean} return true if the query is supported
- */
-export function isSupportedQuery(query: Algebra.Operation): boolean {
-    return true;
-}
-
-export function isQueryAcycle(query: Algebra.Operation): boolean {
-    return true;
-}
-
-export function isQueryWellDesigned(query: Algebra.Operation): boolean {
-    return true;
-}
-
-export function isConjectiveQuery(query: Algebra.Operation): boolean {
-    return true;
-}
-
 export function hasPropertyPath(query: Algebra.Operation): boolean {
     let hasPropertyPath = false;
     const hasPropertyPathFunc = (_op: Algebra.Operation) => {
@@ -120,7 +99,7 @@ export function convertSPARQLIntoRelationalAlgebra(query: Algebra.Operation): Re
     return { result: relationalQuery };
 }
 
-export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Operation): Result<{ queries: [Algebra.Operation, Algebra.Operation], mapping: Map<string, string> }> {
+export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Operation): Result<INormalizeQueryResult> {
     const queryGraph1 = populateQueryGraph(query1);
     const queryGraph2 = populateQueryGraph(query2);
     const mapping: Map<string, string> = new Map();
@@ -128,6 +107,7 @@ export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Oper
     for (const tp2 of queryGraph2.associated_triple_patterns) {
         for (const tp1 of queryGraph1.associated_triple_patterns) {
             const isIsomorphic = isomorphic([tp1], [tp2]);
+            console.log(`[${tp2.subject.value} - ${tp2.predicate.value} - ${tp2.object.value}] - [${tp1.subject.value} - ${tp1.predicate.value} - ${tp1.object.value}]`);
             if (isIsomorphic) {
                 if (tp2.subject.termType === "Variable") {
                     mapping.set(tp1.subject.value, tp2.subject.value);
@@ -148,7 +128,10 @@ export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Oper
     const newQuery2 = renameVariableInQuery(query2, mapping);
     return {
         result: {
-            queries: [query1, newQuery2],
+            queries: {
+                query_1: query1,
+                query_2: newQuery2
+            },
             mapping
         }
     }

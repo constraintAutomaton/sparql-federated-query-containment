@@ -1,23 +1,28 @@
 import { translate, Algebra, Util } from 'sparqlalgebrajs';
+import { normalizeQueries, type INormalizeQueryResult } from './query';
+import { type Result, isResult } from './util';
 
-const query = `
-PREFIX owl: <http://www.w3.org/2002/07/owl#>
-PREFIX rh: <http://rdf.rhea-db.org/>
-PREFIX up: <http://purl.uniprot.org/core/>
-SELECT ?swisslipid  ?organism {
-  ?swisslipid owl:equivalentClass ?chebi .
-  SERVICE <https://sparql.rhea-db.org/sparql> {
-    ?rhea rh:side/rh:contains/rh:compound ?compound .
-    ?compound (rh:chebi|(rh:reactivePart/rh:chebi)|(rh:underlyingChebi/rh:chebi)) ?metabolite .
-    ?compound2 (rh:chebi|(rh:reactivePart/rh:chebi)|(rh:underlyingChebi/rh:chebi)) ?metabolite .
-  }
-  SERVICE <https://sparql.uniprot.org/sparql> {
-    ?catalyticActivityAnnotation up:catalyticActivity/up:catalyzedReaction ?rhea .
-    ?protein up:annotation ?catalyticActivityAnnotation ;
-             up:organism ?organism .
-  }
-}`;
+const query1 = translate(`
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX rh: <http://rdf.rhea-db.org/>
+        PREFIX up: <http://purl.uniprot.org/core/>
+        SELECT ?swisslipid  ?organism {
+        ?swisslipid owl:equivalentClass ?chebi .
+        ?catalyticActivityAnnotation up:catalyticActivity ?rhea .
+        ?protein up:annotation ?catalyticActivityAnnotation ;
+                up:organism ?organism .
+        }`);
+const query2 = translate(`
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX rh: <http://rdf.rhea-db.org/>
+        PREFIX up: <http://purl.uniprot.org/core/>
+        SELECT ?swisslipid1  ?organism1 {
+        ?swisslipid1 owl:equivalentClass ?chebi1 .
+        ?catalyticActivityAnnotation1 up:catalyticActivity ?rhea1 .
+        ?protein1 up:annotation ?catalyticActivityAnnotation1 ;
+                up:organism ?organism1 .
+        }`);
+const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
+const { result } = <{ result: INormalizeQueryResult }>resp
 
-const obj = translate(query);
-
-console.log(JSON.stringify(obj, null, 2));
+console.log(result);
