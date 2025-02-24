@@ -177,3 +177,5 @@ dist
 # PDF
 
 *.pdf
+
+test.json

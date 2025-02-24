@@ -1,6 +1,6 @@
 import { translate, Algebra, Util } from 'sparqlalgebrajs';
-import { normalizeQueries, type INormalizeQueryResult } from './query';
-import { type Result, isResult } from './util';
+import { normalizeQueries, type INormalizeQueryResult } from './lib/query';
+import { type Result, isResult } from './lib/util';
 
 const query1 = translate(`
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -25,4 +25,4 @@ const query2 = translate(`
 const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
 const { result } = <{ result: INormalizeQueryResult }>resp
 
-console.log(result);
+console.log(JSON.stringify(result.queries, null, 2));

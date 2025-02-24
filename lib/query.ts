@@ -1,6 +1,8 @@
 import { Algebra, Util } from 'sparqlalgebrajs';
-import { type Result } from './util';
+import { type Result, RDF_FACTORY } from './util';
 import { isomorphic } from "rdf-isomorphic";
+
+const PATTERN_TERMS_NAME: (keyof Algebra.Pattern)[] = ["subject", "predicate", "object", "graph"];
 /**
  * create a query by deleted a triple patterns with predicates not in the source predicate list
  * @param {Algebra.Operation} query - Query to filtered
@@ -104,23 +106,15 @@ export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Oper
     const queryGraph2 = populateQueryGraph(query2);
     const mapping: Map<string, string> = new Map();
 
-    for (const tp2 of queryGraph2.associated_triple_patterns) {
-        for (const tp1 of queryGraph1.associated_triple_patterns) {
-            const isIsomorphic = isomorphic([tp1], [tp2]);
-            console.log(`[${tp2.subject.value} - ${tp2.predicate.value} - ${tp2.object.value}] - [${tp1.subject.value} - ${tp1.predicate.value} - ${tp1.object.value}]`);
-            if (isIsomorphic) {
-                if (tp2.subject.termType === "Variable") {
-                    mapping.set(tp1.subject.value, tp2.subject.value);
+    for (const tp1 of queryGraph1.associated_triple_patterns) {
+        for (const tp2 of queryGraph2.associated_triple_patterns) {
+            if (isomorphic([tp2], [tp1])) {
+                for (const term of PATTERN_TERMS_NAME) {
+                    if (tp1[term].termType === "BlankNode") {
+                        mapping.set(tp2[term].value, tp1[term].value);
+                    }
                 }
-                if (tp2.predicate.termType === "Variable") {
-                    mapping.set(tp1.predicate.value, tp2.predicate.value);
-                }
-                if (tp2.object.termType === "Variable") {
-                    mapping.set(tp1.object.value, tp2.object.value);
-                }
-                if (tp2.graph.termType === "Variable") {
-                    mapping.set(tp1.graph.value, tp2.graph.value);
-                }
+                break;
             }
         }
     }
@@ -139,32 +133,38 @@ export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Oper
 }
 
 function renameVariableInQuery(query: Algebra.Operation, mapping: Map<string, string>): Algebra.Operation {
-    const deepCopyQuery = Util.mapOperation(query, {});
-    Util.recurseOperation(deepCopyQuery, {
+
+    return Util.mapOperation(query, {
         [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
 
-            if (op.subject.termType === "Variable") {
-                const normalizedVariable = mapping.get(op.subject.value);
-                if (normalizedVariable !== undefined) {
-                    op.subject.value = normalizedVariable;
+            for (const term of PATTERN_TERMS_NAME) {
+                if (op[term].termType === "Variable") {
+                    const normalizedVariable = mapping.get(op[term].value);
+                    if (normalizedVariable !== undefined) {
+                        op[term].value = normalizedVariable;
+                    }
                 }
             }
-            if (op.predicate.termType === "Variable") {
-                const normalizedVariable = mapping.get(op.predicate.value);
+
+
+            return {
+                result: op,
+                recurse: false
+            };
+        },
+        [Algebra.types.PROJECT]: (op: Algebra.Project) => {
+            for (const variable of op.variables) {
+                const normalizedVariable = mapping.get(variable.value);
                 if (normalizedVariable !== undefined) {
-                    op.subject.value = normalizedVariable;
+                    variable.value = normalizedVariable;
                 }
             }
-            if (op.object.termType === "Variable") {
-                const normalizedVariable = mapping.get(op.object.value);
-                if (normalizedVariable !== undefined) {
-                    op.subject.value = normalizedVariable;
-                }
+            return {
+                result: op,
+                recurse: true
             }
-            return false;
         }
-    });
-    return deepCopyQuery;
+    });;
 }
 
 function populateQueryGraph(query: Algebra.Operation): IQueryGraph {
@@ -189,12 +189,25 @@ function populateQueryGraph(query: Algebra.Operation): IQueryGraph {
                 op.predicate.termType === "Variable" ||
                 op.subject.termType === "Variable"
             ) {
-                queryGraph.associated_triple_patterns.push(op)
+                const opWithBlankNode = changeVariableToBlankNode(op);
+                queryGraph.associated_triple_patterns.push(opWithBlankNode)
             }
             return false;
         }
     });
     return queryGraph;
+}
+
+function changeVariableToBlankNode(op: Algebra.Pattern): Algebra.Pattern {
+    const resp = <Algebra.Pattern>Util.mapOperation(op, {});
+
+    for (const term of PATTERN_TERMS_NAME) {
+        if (resp[term].termType === "Variable") {
+            resp[term] = RDF_FACTORY.blankNode(resp[term].value);
+        }
+    }
+
+    return resp;
 }
 
 interface IQueryGraph {
