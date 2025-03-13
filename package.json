@@ -12,6 +12,7 @@
     "rdf-data-factory": "^2.0.2",
     "rdf-isomorphic": "^2.0.1",
     "rdf-js": "^4.0.2",
-    "sparqlalgebrajs": "^5.0.0"
+    "sparqlalgebrajs": "^5.0.0",
+    "z3-solver": "^4.14.1"
   }
 }

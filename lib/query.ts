@@ -1,60 +1,17 @@
+/**
+ * Function to manipulate or determine the properties of queries
+ */
 import { Algebra, Util } from 'sparqlalgebrajs';
 import { type Result, RDF_FACTORY } from './util';
 import { isomorphic } from "rdf-isomorphic";
 
 const PATTERN_TERMS_NAME: (keyof Algebra.Pattern)[] = ["subject", "predicate", "object", "graph"];
+
 /**
- * create a query by deleted a triple patterns with predicates not in the source predicate list
- * @param {Algebra.Operation} query - Query to filtered
- * @param {string[]} sourcePredicates - List of predicate present in the source
- * @returns {Algebra.Operation} Relevant subquery
+ * Check if a query has property paths
+ * @param {Algebra.Operation} query 
+ * @returns {boolean}
  */
-export function createRelevantSubQuery(query: Algebra.Operation, sourcePredicates: Set<string>): Algebra.Operation {
-    const operationModifier = {
-        [Algebra.types.BGP]: (op: Algebra.Bgp) => {
-            const patternResulting = [];
-            for (const pattern of op.patterns) {
-                if (sourcePredicates.has(pattern.predicate.value)) {
-                    patternResulting.push(pattern);
-                }
-            }
-            const new_op = Util.mapOperation(op, {})
-            new_op.patterns = patternResulting;
-            return {
-                result: new_op,
-                recurse: false
-            }
-        },
-        [Algebra.types.JOIN]: (op: Algebra.Join) => {
-            const inputOfJoin = [];
-            for (const el of op.input) {
-                if (el.type === Algebra.types.PATH) {
-                    Util.recurseOperation(op, {
-                        [Algebra.types.LINK]: (op: Algebra.Link) => {
-                            if (sourcePredicates.has(op.iri.value)) {
-                                inputOfJoin.push(el)
-                            }
-                            return false;
-                        }
-                    });
-                } else {
-                    inputOfJoin.push(el);
-                }
-            }
-            const new_op = Util.mapOperation(op, {});
-            new_op.input = inputOfJoin;
-            return {
-                result: new_op,
-                recurse: true
-            }
-        }
-    }
-
-    const relevantQuerySection = Util.mapOperation(query, operationModifier);
-
-    return relevantQuerySection;
-}
-
 export function hasPropertyPath(query: Algebra.Operation): boolean {
     let hasPropertyPath = false;
     const hasPropertyPathFunc = (_op: Algebra.Operation) => {
@@ -74,40 +31,19 @@ export function hasPropertyPath(query: Algebra.Operation): boolean {
     return hasPropertyPath;
 }
 
-export interface IRelation {
-    relation: string,
-    argument_s: string,
-    argument_o: string,
-}
-
-export type ConjectiveQuery = IRelation[];
-
-export function convertSPARQLIntoRelationalAlgebra(query: Algebra.Operation): Result<ConjectiveQuery> {
-    if (hasPropertyPath(query)) {
-        return { error: "Do not support queries with property path currently" };
-    }
-    const relationalQuery: ConjectiveQuery = [];
-    Util.recurseOperation(query, {
-        [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
-            const relation: IRelation = {
-                relation: op.predicate.value,
-                argument_s: op.subject.value,
-                argument_o: op.object.value
-            }
-            relationalQuery.push(relation);
-            return false;
-        }
-    })
-    return { result: relationalQuery };
-}
-
-export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Operation): Result<INormalizeQueryResult> {
-    const queryGraph1 = populateQueryGraph(query1);
-    const queryGraph2 = populateQueryGraph(query2);
+/**
+ * Change the name of the variable of subQuery for does of superQuery
+ * @param {Algebra.Operation} superQuery 
+ * @param {Algebra.Operation} subQuery 
+ * @returns {Result<INormalizeQueryResult>} 
+ */
+export function normalizeQueries(superQuery: Algebra.Operation, subQuery: Algebra.Operation): Result<INormalizeQueryResult> {
+    const superQueryGraph1 = populateQueryGraph(superQuery);
+    const subQueryGraph2 = populateQueryGraph(subQuery);
     const mapping: Map<string, string> = new Map();
 
-    for (const tp1 of queryGraph1.associated_triple_patterns) {
-        for (const tp2 of queryGraph2.associated_triple_patterns) {
+    for (const tp1 of superQueryGraph1.associated_triple_patterns) {
+        for (const tp2 of subQueryGraph2.associated_triple_patterns) {
             if (isomorphic([tp2], [tp1])) {
                 for (const term of PATTERN_TERMS_NAME) {
                     if (tp1[term].termType === "BlankNode") {
@@ -119,19 +55,24 @@ export function normalizeQueries(query1: Algebra.Operation, query2: Algebra.Oper
         }
     }
 
-    const newQuery2 = renameVariableInQuery(query2, mapping);
+    const newQuery2 = renameVariableInQuery(subQuery, mapping);
     return {
         result: {
             queries: {
-                query_1: query1,
-                query_2: newQuery2
+                super_query: superQuery,
+                sub_query: newQuery2
             },
             mapping
         }
     }
 
 }
-
+/**
+ * Rename the variable of a query based on a mapping
+ * @param {Algebra.Operation} query 
+ * @param { Map<string, string>} mapping - the keys are the variable of the query and the values are the values to be replaced by
+ * @returns {Algebra.Operation}
+ */
 function renameVariableInQuery(query: Algebra.Operation, mapping: Map<string, string>): Algebra.Operation {
 
     return Util.mapOperation(query, {
@@ -167,10 +108,15 @@ function renameVariableInQuery(query: Algebra.Operation, mapping: Map<string, st
     });;
 }
 
+/**
+ * Create a query graph
+ * @param {Algebra.Operation} query 
+ * @returns {IQueryGraph}
+ */
 function populateQueryGraph(query: Algebra.Operation): IQueryGraph {
     const queryGraph: IQueryGraph = {
         relevant_variables: new Set<string>,
-        associated_triple_patterns: new Array<Algebra.Pattern>
+        associated_triple_patterns: new Array<Algebra.Pattern>,
     };
 
     Util.recurseOperation(query, {
@@ -189,8 +135,9 @@ function populateQueryGraph(query: Algebra.Operation): IQueryGraph {
                 op.predicate.termType === "Variable" ||
                 op.subject.termType === "Variable"
             ) {
-                const opWithBlankNode = changeVariableToBlankNode(op);
-                queryGraph.associated_triple_patterns.push(opWithBlankNode)
+                // change the variables to blank node so that the isomorphic algorithm works
+                const opWithBlankNode = changeVariableToBlankNode(op,);
+                queryGraph.associated_triple_patterns.push(opWithBlankNode);
             }
             return false;
         }
@@ -211,15 +158,21 @@ function changeVariableToBlankNode(op: Algebra.Pattern): Algebra.Pattern {
 }
 
 interface IQueryGraph {
-    relevant_variables: Set<string>,
-    associated_triple_patterns: Algebra.Pattern[]
+    relevant_variables: Set<string>;
+    associated_triple_patterns: Algebra.Pattern[];
 }
 
+/**
+ * The result of a query normalization operation
+ */
 export interface INormalizeQueryResult {
     queries: {
-        query_1: Algebra.Operation,
-        query_2: Algebra.Operation
+        super_query: Algebra.Operation,
+        sub_query: Algebra.Operation
     },
+    /**
+     * The keys are the variables from the sub query and the value the variable from the super query
+     */
     mapping: Map<string, string>
 }
 
