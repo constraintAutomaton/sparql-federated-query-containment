@@ -18,7 +18,8 @@ import * as Z3_SOLVER from 'z3-solver';
 const { Z3,
 } = await Z3_SOLVER.init();
 
-export function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): Result<boolean> {
+export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): Promise<Result<boolean>> {
+    // make so the queries share the same variable names
     const normalizedQueriesOutput = normalizeQueries(superQ, subQ);
     if (isError(normalizedQueriesOutput)) {
         return normalizedQueriesOutput;
@@ -26,19 +27,25 @@ export function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation):
     const normalizedSubQ = normalizedQueriesOutput.result.queries.sub_query;
     const normalizedSuperQ = normalizedQueriesOutput.result.queries.super_query;
 
+    // generate the variable of the specs formalizum
     const subQRepresentation = generateQueryRepresentation(normalizedSubQ, "sub");
     const superQRepresentation = generateQueryRepresentation(normalizedSuperQ, "super");
 
-    const tileCheckIsValid = performTildeCheck(subQRepresentation.rv, superQRepresentation.rv);
+    const tileCheckIsValid = tildeCheck(subQRepresentation.rv, superQRepresentation.rv);
     if (tileCheckIsValid) {
-
-    } else {
-        const phiEvaluationSmtLibString = generatePhiSmtLibString(subQRepresentation.sigmas);
-        let config = Z3.mk_config();
-        let ctx = Z3.mk_context_rc(config);
-        Z3.eval_smtlib2_string(ctx, phiEvaluationSmtLibString);
+        return { error: "not implemented" };
     }
-    return { error: "not implemented" };
+    const phiEvaluationSmtLibString = generatePhiSmtLibString(subQRepresentation.sigmas);
+    let config = Z3.mk_config();
+    let ctx = Z3.mk_context_rc(config);
+    const response = await Z3.eval_smtlib2_string(ctx, phiEvaluationSmtLibString);
+    if (response === "sat") {
+        return { result: true };
+    } else if (response === "unsat") {
+        return { result: false };
+    }
+    return { error: `Z3 returns ${response}` };
+
 }
 
 export function generatePhiSmtLibString(sigmas: Sigma[]): string {
@@ -54,7 +61,7 @@ export function generatePhiSmtLibString(sigmas: Sigma[]): string {
         literalDeclarations = [...literalDeclarations, ...sigma.literalDeclarations];
         variableDeclarations = [...variableDeclarations, ...sigma.variableDeclarations];
         const triplePatternsStatementAssertion = instantiateTriplePatternStatementTemplate(sigma.subject, sigma.predicate, sigma.object);
-        triplePatternsAssertions.push(triplePatternsStatementAssertion);
+        triplePatternsAssertions.push(`\t\t\t${triplePatternsStatementAssertion}`);
     }
 
     const iriDeclarationString = iriDeclarations.join("\n");
@@ -72,14 +79,14 @@ export function generatePhiSmtLibString(sigmas: Sigma[]): string {
 
 /**
  * Perform the ∼ operation described in definition (4.8)
- * @param {Rv[]} subQRv - relevant variables of the sub query
- * @param {Rv[]} superQRv - relevant variables of the super query
+ * @param {IRv[]} subQRv - relevant variables of the sub query
+ * @param {IRv[]} superQRv - relevant variables of the super query
  * @returns {boolean} if the operation is valid
  */
-export function performTildeCheck(subQRv: Rv[], superQRv: Rv[]): boolean {
+export function tildeCheck(subQRv: IRv[], superQRv: IRv[]): boolean {
     const setRvSubQ = new Set(subQRv.map((el) => el.name));
     const setRvSuperQ = new Set(superQRv.map((el) => el.name));
-    if (setRvSubQ.size != setRvSuperQ.size) {
+    if (setRvSubQ.size !== setRvSuperQ.size) {
         return false;
     }
     for (const el of setRvSubQ) {
@@ -124,9 +131,9 @@ export function generateSigmas(query: Algebra.Operation, queryLabel: string): Si
 /**
  * generate the relevant variables rv (definition 4.6) and the ov variables (definition 4.5)
  * @param {Algebra.Operation} query 
- * @returns {{ ov: Ov[], rv: Rv[] }}
+ * @returns {{ ov: IOv[], rv: IRv[] }}
  */
-export function generateOvRv(query: Algebra.Operation): { ov: Ov[], rv: Rv[] } {
+export function generateOvRv(query: Algebra.Operation): { ov: IOv[], rv: IRv[] } {
     const result: { ov: Ov[], rv: Rv[] } = {
         ov: [],
         rv: []
@@ -156,7 +163,7 @@ export function generateOvRv(query: Algebra.Operation): { ov: Ov[], rv: Rv[] } {
     });
     const usedButNotProjected = [];
     for (const variable of usedVariables) {
-        if (projectedVariables.has(variable)) {
+        if (!projectedVariables.has(variable)) {
             usedButNotProjected.push(variable);
         }
     }
@@ -176,19 +183,16 @@ export function generateOvRv(query: Algebra.Operation): { ov: Ov[], rv: Rv[] } {
 
 export function renameIriforSmt(iri: string): string {
     let resp = iri;
-    if (resp.includes("http://")) {
-        resp = resp.replace("http://", "");
-    }
-    if (resp.includes("https://")) {
-        resp = resp.replace("https://", "");
-    }
-    if (resp.includes("www.")) {
-        resp = resp.replace("www.", "");
-    }
+    resp = resp.replace("http://", "");
+    resp = resp.replace("https://", "");
+    resp = resp.replace("www.", "");
+
 
     resp = resp.replaceAll(".", "_");
     resp = resp.replaceAll("/", "_");
     resp = resp.replaceAll("-", "_");
+    resp = resp.replaceAll("%", "_");
+    resp = resp.replaceAll("#", "_");
 
     return resp;
 }
@@ -196,7 +200,11 @@ export function renameIriforSmt(iri: string): string {
 /**
  * An ov variable (definition 4.6)
  */
-class Ov {
+export interface IOv {
+    name: string;
+}
+
+class Ov implements IOv {
     public readonly name: string;
 
     public constructor(name: string) {
@@ -207,17 +215,26 @@ class Ov {
 /**
  * A relevant variable (definition 4.6)
  */
-class Rv {
+export interface IRv {
+    name: string
+}
+
+class Rv implements IRv {
     public readonly name: string;
 
     public constructor(name: string) {
         this.name = name;
     }
 }
+/**
+ * A sigma function (definition 4.4)
+ */
+export type Sigma = ISigmaTerm;
 
-type Sigma = ISigmaTerm;
-
-interface ISigmaTerm {
+/**
+ * A sigma function (definition 4.4 Term)
+ */
+export interface ISigmaTerm {
     subject: string;
     predicate: string;
     object: string;
@@ -227,7 +244,7 @@ interface ISigmaTerm {
     variableDeclarations: string[];
 }
 
-class SigmaTerm implements ISigmaTerm {
+export class SigmaTerm implements ISigmaTerm {
 
     private static literalCounter = 0;
     public readonly queryLabel: string;
@@ -240,6 +257,7 @@ class SigmaTerm implements ISigmaTerm {
     public readonly literalDeclarations: string[];
     public readonly variableDeclarations: string[];
 
+
     public constructor(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term, queryLabel: string) {
         this.queryLabel = queryLabel;
 
@@ -248,33 +266,46 @@ class SigmaTerm implements ISigmaTerm {
             literal: [],
             variable: []
         };
-        this.subject = this.addATermToTheDeclaration(subject, smtLibDeclaration);
-        this.predicate = this.addATermToTheDeclaration(predicate, smtLibDeclaration);
-        this.object = this.addATermToTheDeclaration(object, smtLibDeclaration);
+        this.subject = this.generateSMTlibTerm(subject);
+        this.predicate = this.generateSMTlibTerm(predicate);
+        this.object = this.generateSMTlibTerm(object);
+
+        this.addATermToTheDeclaration(subject, this.subject, smtLibDeclaration);
+        this.addATermToTheDeclaration(predicate, this.predicate, smtLibDeclaration);
+        this.addATermToTheDeclaration(object, this.object, smtLibDeclaration);
 
         this.iriDeclarations = smtLibDeclaration.iri;
         this.literalDeclarations = smtLibDeclaration.literal;
         this.variableDeclarations = smtLibDeclaration.variable;
     }
 
+    public static generateDeclareSmtLibString(constantName: string): string {
+        return `(declare-const ${constantName} RDFValue)`;
+    }
 
-    private addATermToTheDeclaration(term: RDF.Term, resp: { iri: string[], literal: string[], variable: string[] }): string {
-        let constantName: string | undefined = undefined;
+    private generateSMTlibTerm(term: RDF.Term): string {
         if (term.termType === "NamedNode") {
-            constantName = `<${renameIriforSmt(term.value)}>`
-            resp.iri.push(`(declare-const	${constantName}	RDFValue)`);
+            return `<${renameIriforSmt(term.value)}>`
         } else if (term.termType === "Literal") {
-            constantName = `<l_${SigmaTerm.literalCounter}>`;
+            const name = `<l_${SigmaTerm.literalCounter}>`;
             SigmaTerm.literalCounter += 1;
-            resp.literal.push(`(declare-const	${constantName}	RDFValue)`);
+            return name
         } else if (term.termType === "Variable" || term.termType === "BlankNode") {
-            constantName = `<${this.queryLabel}_${term.value}>`;
-            resp.variable.push(`(declare-const	${constantName}	RDFValue)`);
-        }
-        if (constantName !== undefined) {
-            return constantName;
+            return `<${this.queryLabel}_${term.value}>`;
         }
         throw new Error(`The term sent was not a NamedNode, a Literal or a Variable but was ${term.termType}`);
+    }
+
+    private addATermToTheDeclaration(term: RDF.Term, constantName: string, resp: { iri: string[], literal: string[], variable: string[] }) {
+        const constanceDeclaration = SigmaTerm.generateDeclareSmtLibString(constantName);
+
+        if (term.termType === "NamedNode") {
+            resp.iri.push(constanceDeclaration);
+        } else if (term.termType === "Literal") {
+            resp.literal.push(constanceDeclaration);
+        } else if (term.termType === "Variable" || term.termType === "BlankNode") {
+            resp.variable.push(constanceDeclaration);
+        }
     }
 }
 

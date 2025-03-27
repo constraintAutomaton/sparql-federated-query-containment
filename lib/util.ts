@@ -17,4 +17,4 @@ export function isError<Val, Error>(value: Result<Val, Error>): value is { error
     return 'error' in value;
 }
 
-export type IsContained = (subQ: Algebra.Operation, superQ: Algebra.Operation, options?: Record<string, any>) => Result<boolean>;
+export type IsContained = (subQ: Algebra.Operation, superQ: Algebra.Operation, options?: Record<string, any>) => Promise<Result<boolean>>;

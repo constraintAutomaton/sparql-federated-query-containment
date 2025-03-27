@@ -21,9 +21,12 @@ ${conjecture}
 export function instantiateTemplatePhiConjecture(statements: string): string {
     return `
 (assert
-    (and
+    (not
+        (and
 ${statements}
+        )
     )
+
 )
 `;
 }
