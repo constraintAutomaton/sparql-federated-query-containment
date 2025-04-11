@@ -2,8 +2,9 @@
  * Function to manipulate or determine the properties of queries
  */
 import { Algebra, Util } from 'sparqlalgebrajs';
-import { type Result, RDF_FACTORY } from './util';
+import { RDF_FACTORY } from './util';
 import { isomorphic } from "rdf-isomorphic";
+import { type Result } from 'result-interface';
 
 const PATTERN_TERMS_NAME: (keyof Algebra.Pattern)[] = ["subject", "predicate", "object", "graph"];
 
@@ -37,7 +38,7 @@ export function hasPropertyPath(query: Algebra.Operation): boolean {
  * @param {Algebra.Operation} subQuery 
  * @returns {Result<INormalizeQueryResult>} 
  */
-export function normalizeQueries(superQuery: Algebra.Operation, subQuery: Algebra.Operation): Result<INormalizeQueryResult> {
+export function normalizeQueries(superQuery: Algebra.Operation, subQuery: Algebra.Operation): INormalizeQueryResult {
     const superQueryGraph1 = populateQueryGraph(superQuery);
     const subQueryGraph2 = populateQueryGraph(subQuery);
     const mapping: Map<string, string> = new Map();
@@ -57,13 +58,11 @@ export function normalizeQueries(superQuery: Algebra.Operation, subQuery: Algebr
 
     const newQuery2 = renameVariableInQuery(subQuery, mapping);
     return {
-        result: {
-            queries: {
-                super_query: superQuery,
-                sub_query: newQuery2
-            },
-            mapping
-        }
+        queries: {
+            super_query: superQuery,
+            sub_query: newQuery2
+        },
+        mapping
     }
 
 }

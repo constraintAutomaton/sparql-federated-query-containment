@@ -9,23 +9,21 @@
  * https://github.com/mirkospasic/SpeCS
  */
 import { Algebra, Util } from "sparqlalgebrajs";
-import { isError, type Result } from "../util";
 import { normalizeQueries } from "../query";
 import * as RDF from 'rdf-js';
 import { instantiatePhiTemplate, instantiateTemplatePhiConjecture, instantiateTriplePatternStatementTemplate } from "./templates";
 import * as Z3_SOLVER from 'z3-solver';
+import { type SafePromise, type Result, isError } from "result-interface";
 
 const { Z3,
 } = await Z3_SOLVER.init();
 
-export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): Promise<Result<boolean>> {
+export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): SafePromise<boolean, string> {
     // make so the queries share the same variable names
     const normalizedQueriesOutput = normalizeQueries(superQ, subQ);
-    if (isError(normalizedQueriesOutput)) {
-        return normalizedQueriesOutput;
-    }
-    const normalizedSubQ = normalizedQueriesOutput.result.queries.sub_query;
-    const normalizedSuperQ = normalizedQueriesOutput.result.queries.super_query;
+   
+    const normalizedSubQ = normalizedQueriesOutput.queries.sub_query;
+    const normalizedSuperQ = normalizedQueriesOutput.queries.super_query;
 
     // generate the variable of the specs formalizum
     const subQRepresentation = generateQueryRepresentation(normalizedSubQ, "sub");
@@ -40,9 +38,9 @@ export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Opera
     let ctx = Z3.mk_context_rc(config);
     const response = await Z3.eval_smtlib2_string(ctx, phiEvaluationSmtLibString);
     if (response === "sat") {
-        return { result: true };
+        return { value: true };
     } else if (response === "unsat") {
-        return { result: false };
+        return { value: false };
     }
     return { error: `Z3 returns ${response}` };
 

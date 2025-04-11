@@ -1,4 +1,4 @@
-import { translate, Algebra, Util } from 'sparqlalgebrajs';
+import { translate, Algebra, Util, toSparqlJs } from 'sparqlalgebrajs';
 import { normalizeQueries, type INormalizeQueryResult } from './lib/query';
 import { type Result, isResult } from './lib/util';
 
@@ -22,7 +22,6 @@ const query2 = translate(`
         ?protein1 up:annotation ?catalyticActivityAnnotation1 ;
                 up:organism ?organism1 .
         }`);
-const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
-const { result } = <{ result: INormalizeQueryResult }>resp
 
-console.log(JSON.stringify(result.queries, null, 2));
+
+console.log(JSON.stringify(toSparqlJs(query1), null, 2));

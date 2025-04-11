@@ -1,7 +1,6 @@
-import { describe, expect, it, test } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { translate } from 'sparqlalgebrajs';
 import { hasPropertyPath, normalizeQueries, type INormalizeQueryResult } from '../lib/query';
-import { isResult, type Result } from "../lib/util";
 
 describe('hasPropertyPath', () => {
     it('should return false given a query with no property path', () => {
@@ -68,10 +67,8 @@ describe("normalizeQueries", () => {
         }`;
         const query1 = translate(queryString);
         const query2 = translate(queryString);
-        const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
-        expect(isResult(resp)).toBe(true);
-        const { result } = <{ result: INormalizeQueryResult }>resp
-        expect(result.mapping).toStrictEqual(new Map([
+        const resp = normalizeQueries(query1, query2);
+        expect(resp.mapping).toStrictEqual(new Map([
             ["swisslipid", "swisslipid"],
             ["organism", "organism"],
             ["chebi", "chebi"],
@@ -80,12 +77,12 @@ describe("normalizeQueries", () => {
             ["protein", "protein"]
         ]));
 
-        expect(result.queries.super_query).toStrictEqual(query1);
-        expect(result.queries.sub_query).toStrictEqual(query2);
+        expect(resp.queries.super_query).toStrictEqual(query1);
+        expect(resp.queries.sub_query).toStrictEqual(query2);
     });
 
     it("should rewrite the query given 2 identical queries with different variable names", () => {
-    
+
         const query1 = translate(`
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX rh: <http://rdf.rhea-db.org/>
@@ -106,10 +103,8 @@ describe("normalizeQueries", () => {
         ?protein1 up:annotation ?catalyticActivityAnnotation1 ;
                 up:organism ?organism1 .
         }`);
-        const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
-        expect(isResult(resp)).toBe(true);
-        const { result } = <{ result: INormalizeQueryResult }>resp
-        expect(result.mapping).toStrictEqual(new Map([
+        const resp = normalizeQueries(query1, query2);
+        expect(resp.mapping).toStrictEqual(new Map([
             ["swisslipid1", "swisslipid"],
             ["organism1", "organism"],
             ["chebi1", "chebi"],
@@ -118,12 +113,12 @@ describe("normalizeQueries", () => {
             ["protein1", "protein"]
         ]));
 
-        expect(result.queries.super_query).toStrictEqual(query1);
-        expect(result.queries.sub_query).toStrictEqual(query1);
+        expect(resp.queries.super_query).toStrictEqual(query1);
+        expect(resp.queries.sub_query).toStrictEqual(query1);
     });
 
     it("should rewrite a query with less variables", () => {
-    
+
         const query1 = translate(`
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX rh: <http://rdf.rhea-db.org/>
@@ -142,10 +137,8 @@ describe("normalizeQueries", () => {
         ?swisslipid1 owl:equivalentClass ?chebi1 .
         ?catalyticActivityAnnotation1 up:catalyticActivity ?rhea1 .
         }`);
-        const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
-        expect(isResult(resp)).toBe(true);
-        const { result } = <{ result: INormalizeQueryResult }>resp
-        expect(result.mapping).toStrictEqual(new Map([
+        const resp = normalizeQueries(query1, query2);
+        expect(resp.mapping).toStrictEqual(new Map([
             ["swisslipid1", "swisslipid"],
             ["chebi1", "chebi"],
             ["catalyticActivityAnnotation1", "catalyticActivityAnnotation"],
@@ -160,12 +153,12 @@ describe("normalizeQueries", () => {
             ?swisslipid owl:equivalentClass ?chebi .
             ?catalyticActivityAnnotation up:catalyticActivity ?rhea .
             }`)
-        expect(result.queries.super_query).toStrictEqual(query1);
-        expect(result.queries.sub_query).toStrictEqual(expectedQuery);
+        expect(resp.queries.super_query).toStrictEqual(query1);
+        expect(resp.queries.sub_query).toStrictEqual(expectedQuery);
     });
 
     it("should not rewrite queries that have nothing in common", () => {
-    
+
         const query1 = translate(`
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX rh: <http://rdf.rhea-db.org/>
@@ -183,17 +176,15 @@ describe("normalizeQueries", () => {
         SELECT * WHERE {
         ?s owl:equivalentClass2 ?o
         }`);
-        const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
-        expect(isResult(resp)).toBe(true);
-        const { result } = <{ result: INormalizeQueryResult }>resp
-        expect(result.mapping).toStrictEqual(new Map([]));
+        const resp = normalizeQueries(query1, query2);
+        expect(resp.mapping).toStrictEqual(new Map([]));
 
-        expect(result.queries.super_query).toStrictEqual(query1);
-        expect(result.queries.sub_query).toStrictEqual(query2);
+        expect(resp.queries.super_query).toStrictEqual(query1);
+        expect(resp.queries.sub_query).toStrictEqual(query2);
     });
 
     it("should rewrite the query given it has different variables that cannot be rewritten", () => {
-    
+
         const query1 = translate(`
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
         PREFIX rh: <http://rdf.rhea-db.org/>
@@ -217,10 +208,8 @@ describe("normalizeQueries", () => {
                 <http://www.example.com#foo> ?v1 .
         ?v2 <http://www.example.com#foo2>  ?v3 .
         }`);
-        const resp = <Result<INormalizeQueryResult, Error>>normalizeQueries(query1, query2);
-        expect(isResult(resp)).toBe(true);
-        const { result } = <{ result: INormalizeQueryResult }>resp
-        expect(result.mapping).toStrictEqual(new Map([
+        const resp = normalizeQueries(query1, query2);
+        expect(resp.mapping).toStrictEqual(new Map([
             ["swisslipid1", "swisslipid"],
             ["organism1", "organism"],
             ["chebi1", "chebi"],
@@ -242,7 +231,7 @@ describe("normalizeQueries", () => {
                     <http://www.example.com#foo> ?v1 .
             ?v2 <http://www.example.com#foo2>  ?v3 .
             }`)
-        expect(result.queries.super_query).toStrictEqual(query1);
-        expect(result.queries.sub_query).toStrictEqual(expectedQuery);
+        expect(resp.queries.super_query).toStrictEqual(query1);
+        expect(resp.queries.sub_query).toStrictEqual(expectedQuery);
     });
 });

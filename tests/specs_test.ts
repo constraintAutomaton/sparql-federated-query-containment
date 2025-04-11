@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { generateOvRv, generateSigmas, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma } from '../lib/approaches/specs';
+import { generateOvRv, generatePhiSmtLibString, generateSigmas, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma } from '../lib/approaches/specs';
 import { translate } from "sparqlalgebrajs";
+import { instantiatePhiTemplate } from '../lib/approaches/templates';
 
 describe(renameIriforSmt.name, () => {
     it("should rename an iri", () => {
@@ -218,5 +219,16 @@ describe(tildeCheck.name, () => {
         ];
 
         expect(tildeCheck(subRv, superRv)).toBe(true);
+    });
+});
+
+describe(generatePhiSmtLibString.name, ()=>{
+    it("it should generate an empty template given no sigma", ()=>{
+        const sigmas: Sigma[] = [];
+
+        const phiFormat = generatePhiSmtLibString(sigmas);
+        const expectedString = instantiatePhiTemplate("", "", "", "");
+
+        expect(phiFormat).toBe(expectedString);
     });
 });

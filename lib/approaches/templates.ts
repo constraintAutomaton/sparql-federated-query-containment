@@ -1,4 +1,4 @@
-export function instantiatePhiTemplate(iriDeclaration:string, literalDeclarations:string, variableDeclaration:string, conjecture:string): string {
+export function instantiatePhiTemplate(iriDeclaration: string, literalDeclarations: string, variableDeclaration: string, conjecture: string): string {
     return `
 ; ------------ Sort and Predicate -------------------
 (declare-sort RDFValue 0)
@@ -19,6 +19,9 @@ ${conjecture}
 }
 
 export function instantiateTemplatePhiConjecture(statements: string): string {
+    if (statements === "") {
+        return ""
+    }
     return `
 (assert
     (not
