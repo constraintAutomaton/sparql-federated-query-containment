@@ -13,7 +13,7 @@ import { normalizeQueries } from "../query";
 import * as RDF from 'rdf-js';
 import { instantiatePhiTemplate, instantiateTemplatePhiConjecture, instantiateTriplePatternStatementTemplate } from "./templates";
 import * as Z3_SOLVER from 'z3-solver';
-import { type SafePromise, type Result, isError } from "result-interface";
+import { type SafePromise,result, error } from "result-interface";
 
 const { Z3,
 } = await Z3_SOLVER.init();
@@ -25,24 +25,24 @@ export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Opera
     const normalizedSubQ = normalizedQueriesOutput.queries.sub_query;
     const normalizedSuperQ = normalizedQueriesOutput.queries.super_query;
 
-    // generate the variable of the specs formalizum
+    // generate the variable of the specs formalisum
     const subQRepresentation = generateQueryRepresentation(normalizedSubQ, "sub");
     const superQRepresentation = generateQueryRepresentation(normalizedSuperQ, "super");
 
     const tileCheckIsValid = tildeCheck(subQRepresentation.rv, superQRepresentation.rv);
     if (tileCheckIsValid) {
-        return { error: "not implemented" };
+        return  error("not implemented");
     }
     const phiEvaluationSmtLibString = generatePhiSmtLibString(subQRepresentation.sigmas);
     let config = Z3.mk_config();
     let ctx = Z3.mk_context_rc(config);
     const response = await Z3.eval_smtlib2_string(ctx, phiEvaluationSmtLibString);
     if (response === "sat") {
-        return { value: true };
+        return result(true);
     } else if (response === "unsat") {
-        return { value: false };
+        return result(false);
     }
-    return { error: `Z3 returns ${response}` };
+    return error(`Z3 returns ${response}`);
 
 }
 

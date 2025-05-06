@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { generateOvRv, generatePhiSmtLibString, generateSigmas, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma } from '../lib/approaches/specs';
+import { generateOvRv, generatePhiSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma } from '../lib/approaches/specs';
 import { translate } from "sparqlalgebrajs";
-import { instantiatePhiTemplate } from '../lib/approaches/templates';
+import { instantiatePhiTemplate, instantiateTemplatePhiConjecture, instantiateTriplePatternStatementTemplate } from '../lib/approaches/templates';
 
 describe(renameIriforSmt.name, () => {
     it("should rename an iri", () => {
@@ -222,8 +222,8 @@ describe(tildeCheck.name, () => {
     });
 });
 
-describe(generatePhiSmtLibString.name, ()=>{
-    it("it should generate an empty template given no sigma", ()=>{
+describe(generatePhiSmtLibString.name, () => {
+    it("should generate an empty SMT lib file given no sigma", () => {
         const sigmas: Sigma[] = [];
 
         const phiFormat = generatePhiSmtLibString(sigmas);
@@ -231,4 +231,127 @@ describe(generatePhiSmtLibString.name, ()=>{
 
         expect(phiFormat).toBe(expectedString);
     });
+
+    it("should generate an SMT lib file given a sigma", () => {
+        const sigma: Sigma =
+        {
+            subject: "<sub_swisslipid>",
+            predicate: "<w3_org_2002_07_owl_equivalentClass>",
+            object: "<sub_chebi>",
+
+            iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass>")],
+            literalDeclarations: [],
+            variableDeclarations: [
+                SigmaTerm.generateDeclareSmtLibString("<sub_swisslipid>"),
+                SigmaTerm.generateDeclareSmtLibString("<sub_chebi>")
+            ]
+        };
+
+        const statement = instantiateTriplePatternStatementTemplate("<sub_swisslipid>", "<w3_org_2002_07_owl_equivalentClass>", "<sub_chebi>");
+        const phiFormat = generatePhiSmtLibString([sigma]);
+        const conjecture = instantiateTemplatePhiConjecture(`\t\t\t${statement}`);
+        const expectedString = instantiatePhiTemplate(sigma.iriDeclarations[0], "", sigma.variableDeclarations.join("\n"), conjecture);
+
+        expect(phiFormat).toBe(expectedString);
+    });
+
+    it("should generate an SMT lib file given a multiple sigmas", () => {
+        const sigma1: Sigma ={
+            subject: "<sub_swisslipid>",
+            predicate: "<w3_org_2002_07_owl_equivalentClass>",
+            object: "<sub_chebi>",
+
+            iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass>")],
+            literalDeclarations: [],
+            variableDeclarations: [
+                SigmaTerm.generateDeclareSmtLibString("<sub_swisslipid>"),
+                SigmaTerm.generateDeclareSmtLibString("<sub_chebi>")
+            ]
+        };
+
+        const sigma2: Sigma ={
+            subject: "<sub_swisslipid_2>",
+            predicate: "<l_foo>",
+            object: "<sub_chebi>",
+
+            iriDeclarations: [],
+            literalDeclarations: [SigmaTerm.generateDeclareSmtLibString("<l_foo>")],
+            variableDeclarations: [
+                SigmaTerm.generateDeclareSmtLibString("<sub_swisslipid_2>"),
+                SigmaTerm.generateDeclareSmtLibString("<sub_chebi>")
+            ]
+        };
+
+        const sigma3: Sigma ={
+            subject: "<sub_swisslipid_3>",
+            predicate: "<w3_org_2002_07_owl_equivalentClass_3>",
+            object: "<sub_chebi_3>",
+
+            iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass_3>")],
+            literalDeclarations: [],
+            variableDeclarations: [
+                SigmaTerm.generateDeclareSmtLibString("<sub_swisslipid_3>"),
+                SigmaTerm.generateDeclareSmtLibString("<sub_chebi_3>")
+            ]
+        };
+
+        const statement1 = instantiateTriplePatternStatementTemplate("<sub_swisslipid>", "<w3_org_2002_07_owl_equivalentClass>", "<sub_chebi>");
+        const statement2 = instantiateTriplePatternStatementTemplate("<sub_swisslipid_2>", "<l_foo>", "<sub_chebi>");
+        const statement3 = instantiateTriplePatternStatementTemplate("<sub_swisslipid_3>", "<w3_org_2002_07_owl_equivalentClass_3>", "<sub_chebi_3>");
+
+        const conjecture = instantiateTemplatePhiConjecture(`\t\t\t${statement1}\n\t\t\t${statement2}\n\t\t\t${statement3}`);
+
+        const iriDeclaration = [...sigma1.iriDeclarations, ...sigma2.iriDeclarations, ...sigma3.iriDeclarations].join("\n");
+        const literalDeclaration = [...sigma1.literalDeclarations, ...sigma2.literalDeclarations, ...sigma3.literalDeclarations].join("\n");
+        const variableDeclaration = [...sigma1.variableDeclarations, ...sigma2.variableDeclarations, ...sigma3.variableDeclarations].join("\n");
+
+        const expectedString = instantiatePhiTemplate(iriDeclaration, literalDeclaration, variableDeclaration, conjecture);
+        
+
+        const phiFormat = generatePhiSmtLibString([sigma1, sigma2, sigma3]);
+        expect(phiFormat).toBe(expectedString);
+    });
+
+});
+
+describe(tildeCheck.name, ()=>{
+    it("should retun false given two relevant variable set that do not have the same size", ()=>{
+        const rv1: IRv[] = [{name:"foo1"}, {name:"foo2"}, {name:"foo3"}];
+        const rv2: IRv[] = [{name:"bar1"}, {name:"bar2"},];
+
+        const resp = tildeCheck(rv1, rv2);
+
+        expect(resp).toBe(false);
+    });
+
+    it("should retun false given two identical relevant variable sets", ()=>{
+        const rv1: IRv[] = [{name:"foo1"}, {name:"foo2"}, {name:"foo3"}];
+        const rv2: IRv[] = [{name:"bar1"}, {name:"bar2"}, {name:"bar3"}];
+
+        const resp = tildeCheck(rv1, rv2);
+
+        expect(resp).toBe(false);
+    });
+
+    it("should retun true given two relevant variable sets", ()=>{
+        const rv1: IRv[] = [{name:"foo1"}, {name:"foo2"}, {name:"foo3"}];
+        const rv2: IRv[] = [{name:"bar1"}, {name:"bar2"}, {name:"bar3"}];
+
+        const resp = tildeCheck(rv1, rv2);
+
+        expect(resp).toBe(false);
+    });
+
+    it("should retun true given two empty relevant variable sets", ()=>{
+        const rv1: IRv[] = [];
+        const rv2: IRv[] = [];
+
+        const resp = tildeCheck(rv1, rv2);
+
+        expect(resp).toBe(false);
+    });
+});
+
+describe(isContained.name, ()=>{
+
 });
