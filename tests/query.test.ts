@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { translate } from 'sparqlalgebrajs';
 import { hasPropertyPath, normalizeQueries, type INormalizeQueryResult } from '../lib/query';
 
@@ -14,7 +14,7 @@ describe('hasPropertyPath', () => {
         ?protein up:annotation ?catalyticActivityAnnotation ;
                 up:organism ?organism .
         }`;
-        expect(hasPropertyPath(translate(query))).toBeFalse();
+        expect(hasPropertyPath(translate(query))).toBe(false);
     });
 
     it('should return true given a query with a property path', () => {
@@ -28,7 +28,7 @@ describe('hasPropertyPath', () => {
         ?protein up:annotation ?catalyticActivityAnnotation ;
                 up:organism ?organism .
         }`;
-        expect(hasPropertyPath(translate(query))).toBeTrue();
+        expect(hasPropertyPath(translate(query))).toBe(true);
     });
 
     it('should return true given a query with multiple property paths', () => {
@@ -49,7 +49,7 @@ describe('hasPropertyPath', () => {
                     up:organism ?organism .
         }
         }`;
-        expect(hasPropertyPath(translate(query))).toBeTrue();
+        expect(hasPropertyPath(translate(query))).toBe(true);
     });
 });
 

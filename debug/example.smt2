@@ -1,9 +1,3 @@
-import * as Z3_SOLVER from 'z3-solver';
-
-const { Z3,
-} = await Z3_SOLVER.init();
-
-const query = `
 ; ------------ Sort and Predicate -------------------
 (declare-sort RDFValue 0)
 (declare-fun P (RDFValue RDFValue RDFValue RDFValue) Bool)
@@ -20,17 +14,26 @@ const query = `
 ; ------------ Conjecture ---------------------------
 
 (assert
-    (and
-        (or (P <sub_s> <sub_p> <sub_o> <default_graph>))
-    )
+        (and
+                (or (P <sub_s> <sub_p> <sub_o> <default_graph>))
+        )
 )
 
+
+(assert
+    (exists ((<e_sub_s> RDFValue))
+        (and
+            (and
+                (= <e_sub_s> <sub_s>)
+            )
+            (not
+                (and
+                                        (or (P <sub_s> <sub_p> <sub_o> <default_graph>))
+                )
+            )
+        )    
+    )
+)
 ; ------------ Check-Sat ----------------------------
 (check-sat)
-`;
 
-let config = Z3.mk_config();
-let ctx = Z3.mk_context_rc(config);
-const response = await Z3.eval_smtlib2_string(ctx, query);
-
-console.log(`response ${response}`);

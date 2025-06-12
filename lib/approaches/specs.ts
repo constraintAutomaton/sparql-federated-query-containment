@@ -10,10 +10,10 @@
  */
 import { Algebra, Util } from "sparqlalgebrajs";
 import { normalizeQueries } from "../query";
-import * as RDF from 'rdf-js';
-import { instantiatePhiTemplate, instantiateTemplatePhiConjecture, instantiateTriplePatternStatementTemplate } from "./templates";
+import type * as RDF from '@rdfjs/types';
+import {  instantiateThetaConjecture, instantiateThetaTemplate, instantiateTriplePatternStatementTemplate, local_var_declaration } from "./templates";
 import * as Z3_SOLVER from 'z3-solver';
-import { type SafePromise,result, error } from "result-interface";
+import { type SafePromise, result, error } from "result-interface";
 
 const { Z3,
 } = await Z3_SOLVER.init();
@@ -21,7 +21,7 @@ const { Z3,
 export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): SafePromise<boolean, string> {
     // make so the queries share the same variable names
     const normalizedQueriesOutput = normalizeQueries(superQ, subQ);
-   
+
     const normalizedSubQ = normalizedQueriesOutput.queries.sub_query;
     const normalizedSuperQ = normalizedQueriesOutput.queries.super_query;
 
@@ -31,22 +31,23 @@ export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Opera
 
     const tileCheckIsValid = tildeCheck(subQRepresentation.rv, superQRepresentation.rv);
     if (tileCheckIsValid) {
-        return  error("not implemented");
+        return error("not implemented");
     }
-    const phiEvaluationSmtLibString = generatePhiSmtLibString(subQRepresentation.sigmas);
+    const thetaEvaluationSmtLibString = generateThetaSmtLibString(subQRepresentation.sigmas, subQRepresentation.rv);
     let config = Z3.mk_config();
     let ctx = Z3.mk_context_rc(config);
-    const response = await Z3.eval_smtlib2_string(ctx, phiEvaluationSmtLibString);
-    if (response === "sat") {
+    console.log(thetaEvaluationSmtLibString);
+    const response = await Z3.eval_smtlib2_string(ctx, thetaEvaluationSmtLibString);
+    if (response.startsWith("sat")) {
         return result(true);
-    } else if (response === "unsat") {
+    } else if (response.startsWith("unsat")) {
         return result(false);
     }
     return error(`Z3 returns ${response}`);
 
 }
 
-export function generatePhiSmtLibString(sigmas: Sigma[]): string {
+export function generateThetaSmtLibString(sigmas: Sigma[], rvs: IRv[]): string {
 
     let iriDeclarations: string[] = [];
     let literalDeclarations: string[] = [];
@@ -59,18 +60,19 @@ export function generatePhiSmtLibString(sigmas: Sigma[]): string {
         literalDeclarations = [...literalDeclarations, ...sigma.literalDeclarations];
         variableDeclarations = [...variableDeclarations, ...sigma.variableDeclarations];
         const triplePatternsStatementAssertion = instantiateTriplePatternStatementTemplate(sigma.subject, sigma.predicate, sigma.object);
-        triplePatternsAssertions.push(`\t\t\t${triplePatternsStatementAssertion}`);
+        triplePatternsAssertions.push(`${triplePatternsStatementAssertion}`);
     }
 
-    const iriDeclarationString = iriDeclarations.join("\n");
-    const literalDeclarationsString = literalDeclarations.join("\n");
-    const variableDeclarationsString = variableDeclarations.join("\n");
+    const iriDeclarationString = Array.from(new Set(iriDeclarations)).join("\n");
+    const literalDeclarationsString = Array.from(new Set(literalDeclarations)).join("\n");
+    const variableDeclarationsString = Array.from(new Set(variableDeclarations)).join("\n");
 
     const triplePatternsAssertionsString = triplePatternsAssertions.join("\n");
 
-    const phiConjecture = instantiateTemplatePhiConjecture(triplePatternsAssertionsString);
+    const [localVarDeclaration, localVarAssoc] = local_var_declaration(rvs);
+    const thetaConjecture = instantiateThetaConjecture(triplePatternsAssertionsString, localVarDeclaration, localVarAssoc);
 
-    const instance = instantiatePhiTemplate(iriDeclarationString, literalDeclarationsString, variableDeclarationsString, phiConjecture);
+    const instance = instantiateThetaTemplate(iriDeclarationString, literalDeclarationsString, variableDeclarationsString, thetaConjecture);
 
     return instance;
 }

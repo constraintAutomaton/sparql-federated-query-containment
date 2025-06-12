@@ -3,17 +3,26 @@
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "ts-node": "^10.9.2",
+    "ts-node-esm": "^0.0.6",
+    "tsx": "^4.20.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@rdfjs/types": "^2.0.1",
     "rdf-data-factory": "^2.0.2",
     "rdf-isomorphic": "^2.0.1",
-    "rdf-js": "^4.0.2",
     "result-interface": "^2.3.1",
     "sparqlalgebrajs": "^5.0.0",
     "z3-solver": "^4.14.1"
-  }
+  },
+  "scripts": {
+    "test": "vitest"
+  },
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }
