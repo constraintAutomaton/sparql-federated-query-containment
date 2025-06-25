@@ -9,46 +9,88 @@
  * https://github.com/mirkospasic/SpeCS
  */
 import { Algebra, Util } from "sparqlalgebrajs";
-import { normalizeQueries } from "../query";
 import type * as RDF from '@rdfjs/types';
-import {  instantiateThetaConjecture, instantiateThetaTemplate, instantiateTriplePatternStatementTemplate, local_var_declaration } from "./templates";
+import { instantiateThetaConjecture, instantiateTemplate, instantiateTriplePatternStatementTemplate, local_var_declaration, instantiateQueryContainmentConjecture } from "./templates";
 import * as Z3_SOLVER from 'z3-solver';
 import { type SafePromise, result, error } from "result-interface";
 
 const { Z3,
 } = await Z3_SOLVER.init();
 
-export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): SafePromise<boolean, string> {
-    // make so the queries share the same variable names
-    const normalizedQueriesOutput = normalizeQueries(superQ, subQ);
+export interface ISolverResponse {
+    result: boolean,
+    smtlib: string
+}
 
-    const normalizedSubQ = normalizedQueriesOutput.queries.sub_query;
-    const normalizedSuperQ = normalizedQueriesOutput.queries.super_query;
+export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): SafePromise<ISolverResponse, string> {
+    const normalizedSubQ = subQ;
+    const normalizedSuperQ = superQ;
 
     // generate the variable of the specs formalisum
-    const subQRepresentation = generateQueryRepresentation(normalizedSubQ, "sub");
-    const superQRepresentation = generateQueryRepresentation(normalizedSuperQ, "super");
+    const subQRepresentation = generateQueryRepresentation(normalizedSubQ);
+    const superQRepresentation = generateQueryRepresentation(normalizedSuperQ);
 
-    const tileCheckIsValid = tildeCheck(subQRepresentation.rv, superQRepresentation.rv);
-    if (tileCheckIsValid) {
-        return error("not implemented");
+    const tildeCheckIsValid = tildeCheck(subQRepresentation.rv, superQRepresentation.rv);
+    if (tildeCheckIsValid) {
+        const queryContainmentSmtLibString = generateQueryContainment(subQRepresentation.sigmas, subQRepresentation.rv, superQRepresentation.sigmas, superQRepresentation.rv);
+        let config = Z3.mk_config();
+        let ctx = Z3.mk_context_rc(config);
+        const response = await Z3.eval_smtlib2_string(ctx, queryContainmentSmtLibString);
+        if (response.startsWith("unsat")) {
+            return result({ result: true, smtlib: queryContainmentSmtLibString });
+        } else if (response.startsWith("sat")) {
+            return result({ result: false, smtlib: queryContainmentSmtLibString });
+        }
+        return error(`Z3 returns ${response}`);
     }
     const thetaEvaluationSmtLibString = generateThetaSmtLibString(subQRepresentation.sigmas, subQRepresentation.rv);
     let config = Z3.mk_config();
     let ctx = Z3.mk_context_rc(config);
-    console.log(thetaEvaluationSmtLibString);
     const response = await Z3.eval_smtlib2_string(ctx, thetaEvaluationSmtLibString);
-    if (response.startsWith("sat")) {
-        return result(true);
-    } else if (response.startsWith("unsat")) {
-        return result(false);
+    if (response.startsWith("unsat")) {
+        return result({ result: false, smtlib: thetaEvaluationSmtLibString });
+    } else if (response.startsWith("sat")) {
+        return result({ result: true, smtlib: thetaEvaluationSmtLibString });
     }
     return error(`Z3 returns ${response}`);
-
 }
 
-export function generateThetaSmtLibString(sigmas: Sigma[], rvs: IRv[]): string {
+export function generateQueryContainment(sub_sigmas: Sigma[], sub_rvs: IRv[], super_sigmas: Sigma[], super_rvs: IRv[],): string {
+    const {
+        iri: subIriDeclarationString,
+        literal: subLiteralDeclarationsString,
+        variable: subVariableDeclarationsString,
+        tp: subTriplePatternsAssertions
+    } = generatePrelude(sub_sigmas, sub_rvs);
 
+    const {
+        iri: superIriDeclarationString,
+        literal: superLiteralDeclarationsString,
+        variable: superVariableDeclarationsString,
+        tp: superTriplePatternsAssertions
+    } = generatePrelude(super_sigmas, super_rvs);
+
+    const subTriplePatternsAssertionsString = subTriplePatternsAssertions.join("\n");
+    const superTriplePatternsAssertionsString = superTriplePatternsAssertions.join("\n");
+
+    const [local_declaration, local_equality] = local_var_declaration(super_rvs);
+
+    const conjecture = instantiateQueryContainmentConjecture(
+        subTriplePatternsAssertionsString,
+        superTriplePatternsAssertionsString,
+        local_declaration,
+        local_equality
+    );
+
+    const iris = Array.from(new Set([...subIriDeclarationString, ...superIriDeclarationString])).join("\n");
+    const literals = Array.from(new Set([...subLiteralDeclarationsString, ...superLiteralDeclarationsString])).join("\n");
+    const variables = Array.from(new Set([...subVariableDeclarationsString, ...superVariableDeclarationsString])).join("\n");
+
+    const instance = instantiateTemplate(iris, literals, variables, conjecture);
+    return instance;
+}
+
+function generatePrelude(sigmas: Sigma[], rvs: IRv[]): { iri: string[], literal: string[], variable: string[], tp: string[] } {
     let iriDeclarations: string[] = [];
     let literalDeclarations: string[] = [];
     let variableDeclarations: string[] = [];
@@ -60,19 +102,35 @@ export function generateThetaSmtLibString(sigmas: Sigma[], rvs: IRv[]): string {
         literalDeclarations = [...literalDeclarations, ...sigma.literalDeclarations];
         variableDeclarations = [...variableDeclarations, ...sigma.variableDeclarations];
         const triplePatternsStatementAssertion = instantiateTriplePatternStatementTemplate(sigma.subject, sigma.predicate, sigma.object);
-        triplePatternsAssertions.push(`${triplePatternsStatementAssertion}`);
+        triplePatternsAssertions.push(triplePatternsStatementAssertion);
     }
 
-    const iriDeclarationString = Array.from(new Set(iriDeclarations)).join("\n");
-    const literalDeclarationsString = Array.from(new Set(literalDeclarations)).join("\n");
-    const variableDeclarationsString = Array.from(new Set(variableDeclarations)).join("\n");
+    return {
+        iri: iriDeclarations,
+        literal: literalDeclarations,
+        variable: variableDeclarations,
+        tp: triplePatternsAssertions
+    };
+}
+
+export function generateThetaSmtLibString(sigmas: Sigma[], rvs: IRv[]): string {
+    const {
+        iri: iriDeclarationString,
+        literal: literalDeclarationsString,
+        variable: variableDeclarationsString,
+        tp: triplePatternsAssertions
+    } = generatePrelude(sigmas, rvs);
 
     const triplePatternsAssertionsString = triplePatternsAssertions.join("\n");
 
     const [localVarDeclaration, localVarAssoc] = local_var_declaration(rvs);
     const thetaConjecture = instantiateThetaConjecture(triplePatternsAssertionsString, localVarDeclaration, localVarAssoc);
 
-    const instance = instantiateThetaTemplate(iriDeclarationString, literalDeclarationsString, variableDeclarationsString, thetaConjecture);
+    const instance = instantiateTemplate(
+        Array.from(new Set(iriDeclarationString)).join("\n"),
+        Array.from(new Set(literalDeclarationsString)).join("\n"),
+        Array.from(new Set(variableDeclarationsString)).join("\n"),
+        thetaConjecture);
 
     return instance;
 }
@@ -97,8 +155,8 @@ export function tildeCheck(subQRv: IRv[], superQRv: IRv[]): boolean {
     return true;
 }
 
-function generateQueryRepresentation(query: Algebra.Operation, queryLabel: string): IQueryRepresentation {
-    const sigmas = generateSigmas(query, queryLabel);
+function generateQueryRepresentation(query: Algebra.Operation): IQueryRepresentation {
+    const sigmas = generateSigmas(query);
     const ovRv = generateOvRv(query);
     return {
         sigmas,
@@ -111,7 +169,7 @@ function generateQueryRepresentation(query: Algebra.Operation, queryLabel: strin
  * @param {Algebra.Operation} query 
  * @returns {Sigma[]}
  */
-export function generateSigmas(query: Algebra.Operation, queryLabel: string): Sigma[] {
+export function generateSigmas(query: Algebra.Operation): Sigma[] {
     const result: Sigma[] = [];
     Util.recurseOperation(query, {
         [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
@@ -119,7 +177,6 @@ export function generateSigmas(query: Algebra.Operation, queryLabel: string): Si
                 op.subject,
                 op.predicate,
                 op.object,
-                queryLabel
             );
             result.push(sigma);
             return false;
@@ -247,7 +304,6 @@ export interface ISigmaTerm {
 export class SigmaTerm implements ISigmaTerm {
 
     private static literalCounter = 0;
-    public readonly queryLabel: string;
 
     public readonly subject: string;
     public readonly predicate: string;
@@ -258,8 +314,7 @@ export class SigmaTerm implements ISigmaTerm {
     public readonly variableDeclarations: string[];
 
 
-    public constructor(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term, queryLabel: string) {
-        this.queryLabel = queryLabel;
+    public constructor(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term) {
 
         const smtLibDeclaration: { iri: string[], literal: string[], variable: string[] } = {
             iri: [],
@@ -291,7 +346,7 @@ export class SigmaTerm implements ISigmaTerm {
             SigmaTerm.literalCounter += 1;
             return name
         } else if (term.termType === "Variable" || term.termType === "BlankNode") {
-            return `<${this.queryLabel}_${term.value}>`;
+            return `<${term.value}>`;
         }
         throw new Error(`The term sent was not a NamedNode, a Literal or a Variable but was ${term.termType}`);
     }

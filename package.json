@@ -19,7 +19,7 @@
     "rdf-isomorphic": "^2.0.1",
     "result-interface": "^2.3.1",
     "sparqlalgebrajs": "^5.0.0",
-    "z3-solver": "^4.14.1"
+    "z3-solver": "^4.15.1"
   },
   "scripts": {
     "test": "vitest"
