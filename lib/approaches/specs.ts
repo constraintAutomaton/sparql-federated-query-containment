@@ -13,6 +13,7 @@ import type * as RDF from '@rdfjs/types';
 import { instantiateThetaConjecture, instantiateTemplate, instantiateTriplePatternStatementTemplate, local_var_declaration, instantiateQueryContainmentConjecture } from "./templates";
 import * as Z3_SOLVER from 'z3-solver';
 import { type SafePromise, result, error } from "result-interface";
+import { hasProjection, queryVariables } from "../query";
 
 const { Z3,
 } = await Z3_SOLVER.init();
@@ -22,16 +23,50 @@ export interface ISolverResponse {
     smtlib: string
 }
 
-export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation): SafePromise<ISolverResponse, string> {
-    const normalizedSubQ = subQ;
-    const normalizedSuperQ = superQ;
+export enum SEMANTIC {
+    SET,
+    BAG_SET,
+    BAG
+}
 
-    // generate the variable of the specs formalisum
-    const subQRepresentation = generateQueryRepresentation(normalizedSubQ);
-    const superQRepresentation = generateQueryRepresentation(normalizedSuperQ);
+export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Operation, semantic: SEMANTIC = SEMANTIC.SET): SafePromise<ISolverResponse, string> {
+    // generate the variable of the specs formalism
+    const subQRepresentation = generateQueryRepresentation(subQ);
+    const superQRepresentation = generateQueryRepresentation(superQ);
 
+    switch (semantic) {
+        case SEMANTIC.SET:
+            return setSemanticContainment(subQRepresentation, superQRepresentation);
+        case SEMANTIC.BAG_SET:
+            if (hasProjection(subQ)) {
+                return bagSetSemanticContainment(subQRepresentation, superQRepresentation);
+            }
+            return setSemanticContainment(subQRepresentation, superQRepresentation);
+        case SEMANTIC.BAG:
+            return error("not implemented");
+    }
+
+}
+
+async function bagSetSemanticContainment(subQRepresentation: IQueryRepresentation, superQRepresentation: IQueryRepresentation): SafePromise<ISolverResponse, string> {
+    const subVariable = {
+        variables: subQRepresentation.variables, relevantVariables: subQRepresentation.rv
+    };
+    const superVariable = {
+        variables: superQRepresentation.variables, relevantVariables: superQRepresentation.rv
+    };
+
+    const tildeCheckIsValid = tildeCheckBagSet(subVariable, superVariable);
+    return abstractContainment(tildeCheckIsValid, subQRepresentation, superQRepresentation);
+}
+
+async function setSemanticContainment(subQRepresentation: IQueryRepresentation, superQRepresentation: IQueryRepresentation): SafePromise<ISolverResponse, string> {
     const tildeCheckIsValid = tildeCheck(subQRepresentation.rv, superQRepresentation.rv);
-    if (tildeCheckIsValid) {
+    return abstractContainment(tildeCheckIsValid, subQRepresentation, superQRepresentation);
+}
+
+async function abstractContainment(compatibilityCheck: boolean, subQRepresentation: IQueryRepresentation, superQRepresentation: IQueryRepresentation): SafePromise<ISolverResponse, string> {
+    if (compatibilityCheck) {
         const queryContainmentSmtLibString = generateQueryContainment(subQRepresentation.sigmas, subQRepresentation.rv, superQRepresentation.sigmas, superQRepresentation.rv);
         let config = Z3.mk_config();
         let ctx = Z3.mk_context_rc(config);
@@ -155,11 +190,24 @@ export function tildeCheck(subQRv: IRv[], superQRv: IRv[]): boolean {
     return true;
 }
 
+export function tildeCheckBagSet(subVariables: { variables: Set<string>, relevantVariables: IRv[] }, superVariables: { variables: Set<string>, relevantVariables: IRv[] }): boolean {
+    const respSetCheck = tildeCheck(subVariables.relevantVariables, superVariables.relevantVariables);
+    if (!respSetCheck) {
+        return false;
+    }
+    const rawRvSuper = new Set(superVariables.relevantVariables.map((el) => el.name));
+    
+    return rawRvSuper.isSubsetOf(subVariables.variables);
+}
+
 function generateQueryRepresentation(query: Algebra.Operation): IQueryRepresentation {
     const sigmas = generateSigmas(query);
     const ovRv = generateOvRv(query);
+    const variables = queryVariables(query);
+
     return {
         sigmas,
+        variables,
         ...ovRv
     }
 }
@@ -366,6 +414,7 @@ export class SigmaTerm implements ISigmaTerm {
 
 interface IQueryRepresentation {
     sigmas: Sigma[];
+    variables: Set<string>;
     ov: Ov[];
     rv: Rv[];
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { translate } from 'sparqlalgebrajs';
-import { hasPropertyPath, normalizeQueries, type INormalizeQueryResult } from '../lib/query';
+import { hasPropertyPath, normalizeQueries, hasProjection, queryVariables } from '../lib/query';
 
-describe('hasPropertyPath', () => {
+describe(hasPropertyPath.name, () => {
     it('should return false given a query with no property path', () => {
         const query = `
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -53,7 +53,7 @@ describe('hasPropertyPath', () => {
     });
 });
 
-describe("normalizeQueries", () => {
+describe(normalizeQueries.name, () => {
     it("should have the same queries given 2 identical queries", () => {
         const queryString = `
         PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -234,4 +234,72 @@ describe("normalizeQueries", () => {
         expect(resp.queries.super_query).toStrictEqual(query1);
         expect(resp.queries.sub_query).toStrictEqual(expectedQuery);
     });
+});
+
+describe(hasProjection.name, () => {
+    it("given a query with projection should return true", () => {
+        const query = `SELECT ?s {?s ?p ?o}`;
+        const algebra = translate(query);
+        expect(hasProjection(algebra)).toBe(true);
+    });
+
+    it("given a query with no projection should return false", () => {
+        const query = `SELECT * {?s ?p ?o}`;
+        const algebra = translate(query);
+        expect(hasProjection(algebra)).toBe(false);
+    });
+
+    it("given a query with no projection defined manually should return false", () => {
+        const query = `SELECT ?s ?p ?o {?s ?p ?o}`;
+        const algebra = translate(query);
+        expect(hasProjection(algebra)).toBe(false);
+    });
+});
+
+describe(queryVariables.name, () => {
+    it("should return every variables of a query", () => {
+        const query = `SELECT * WHERE {?s ?p ?o}`;
+        const variables = queryVariables(translate(query));
+
+        expect(new Set(variables)).toStrictEqual(new Set(["s", "p", "o"]));
+    });
+
+    it("should return no variables of a query with no variables", () => {
+        const query = `SELECT * WHERE {<http://example.com#s> a <http://example.com#o>}`;
+        const variables = queryVariables(translate(query));
+
+        expect(new Set(variables)).toStrictEqual(new Set([]));
+    });
+
+    it("should return the variables of a complex query", () => {
+        const query = `
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX rh: <http://rdf.rhea-db.org/>
+        PREFIX up: <http://purl.uniprot.org/core/>
+        SELECT ?swisslipid  ?organism {
+        ?swisslipid owl:equivalentClass ?chebi .
+        SERVICE <https://sparql.rhea-db.org/sparql> {
+            ?rhea rh:side ?compound .
+            ?compound rh:chebi ?metabolite .
+        }
+        SERVICE <https://sparql.uniprot.org/sparql> {
+            ?catalyticActivityAnnotation up:catalyticActivity ?rhea .
+            ?protein up:annotation ?catalyticActivityAnnotation ;
+                    up:organism ?organism .
+        }
+        }`;
+        const variables = queryVariables(translate(query));
+        const expectedVariables = new Set([
+            "swisslipid",
+            "organism",
+            "chebi",
+            "compound",
+            "metabolite",
+            "catalyticActivityAnnotation",
+            "rhea",
+            "protein"
+        ]);
+        expect(variables).toStrictEqual(expectedVariables);
+    });
+
 });

@@ -4,10 +4,64 @@
 import { Algebra, Util } from 'sparqlalgebrajs';
 import { RDF_FACTORY } from './util';
 import { isomorphic } from "rdf-isomorphic";
-import { type Result } from 'result-interface';
 
 const PATTERN_TERMS_NAME: (keyof Algebra.Pattern)[] = ["subject", "predicate", "object", "graph"];
 
+export function queryVariables(query: Algebra.Operation): Set<string> {
+    const variables: Set<string> = new Set();
+
+    Util.recurseOperation(query, {
+        [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
+            if (op.subject.termType === "Variable") {
+                variables.add(op.subject.value);
+            }
+            if (op.predicate.termType === "Variable") {
+                variables.add(op.predicate.value);
+            }
+            if (op.object.termType === "Variable") {
+                variables.add(op.object.value);
+            }
+            return true;
+        }
+    });
+    return variables;
+}
+
+export function hasProjection(query: Algebra.Operation): boolean {
+    const projectedVariables = new Set();
+    const usedVariables = new Set();
+
+    Util.recurseOperation(query, {
+        [Algebra.types.PROJECT]: (op: Algebra.Project) => {
+            for (const variable of op.variables) {
+                projectedVariables.add(variable.value);
+            }
+            return true;
+        },
+        [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
+            if (op.subject.termType === "Variable") {
+                usedVariables.add(op.subject.value);
+            }
+            if (op.predicate.termType === "Variable") {
+                usedVariables.add(op.predicate.value);
+            }
+            if (op.object.termType === "Variable") {
+                usedVariables.add(op.object.value);
+            }
+            return false;
+        }
+    });
+
+    if (projectedVariables.size !== usedVariables.size) {
+        return true;
+    }
+    for (const v of projectedVariables) {
+        if (!usedVariables.has(v)) {
+            return false;
+        }
+    }
+    return false;
+}
 /**
  * Check if a query has property paths
  * @param {Algebra.Operation} query 

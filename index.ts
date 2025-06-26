@@ -1,36 +1,22 @@
-import * as Z3_SOLVER from 'z3-solver';
-
-const { Z3,
-} = await Z3_SOLVER.init();
+import { translate } from "sparqlalgebrajs";
 
 const query = `
-; ------------ Sort and Predicate -------------------
-(declare-sort RDFValue 0)
-(declare-fun P (RDFValue RDFValue RDFValue RDFValue) Bool)
-(declare-const <default_graph> RDFValue)
+		PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        PREFIX rh: <http://rdf.rhea-db.org/>
+        PREFIX up: <http://purl.uniprot.org/core/>
+        SELECT ?swisslipid  ?organism {
+        ?swisslipid owl:equivalentClass ?chebi .
+        SERVICE <https://sparql.rhea-db.org/sparql> {
+            ?rhea rh:side/rh:contains/rh:compound ?compound .
+            ?compound (rh:chebi|(rh:reactivePart/rh:chebi)|(rh:underlyingChebi/rh:chebi)) ?metabolite .
+            ?compound2 (rh:chebi|(rh:reactivePart/rh:chebi)|(rh:underlyingChebi/rh:chebi)) ?metabolite .
+        }
+        SERVICE <https://sparql.uniprot.org/sparql> {
+            ?catalyticActivityAnnotation up:catalyticActivity/up:catalyzedReaction ?rhea .
+            ?protein up:annotation ?catalyticActivityAnnotation ;
+                    up:organism ?organism .
+        }
+        }`;
+const algebra_boy = translate(query);
 
-; ------------ IRIs ---------------------------------
-
-; ------------ Literals -----------------------------
-
-; ------------ Variables ----------------------------
-(declare-const <sub_s> RDFValue)
-(declare-const <sub_p> RDFValue)
-(declare-const <sub_o> RDFValue)
-; ------------ Conjecture ---------------------------
-
-(assert
-    (and
-        (or (P <sub_s> <sub_p> <sub_o> <default_graph>))
-    )
-)
-
-; ------------ Check-Sat ----------------------------
-(check-sat)
-`;
-
-let config = Z3.mk_config();
-let ctx = Z3.mk_context_rc(config);
-const response = await Z3.eval_smtlib2_string(ctx, query);
-
-console.log(`response ${response}`);
+console.log(JSON.stringify(algebra_boy, null, 2));
