@@ -12,7 +12,7 @@ import { Algebra, Util } from "sparqlalgebrajs";
 import type * as RDF from '@rdfjs/types';
 import { instantiateThetaConjecture, instantiateTemplate, instantiateTriplePatternStatementTemplate, local_var_declaration, instantiateQueryContainmentConjecture } from "./templates";
 import * as Z3_SOLVER from 'z3-solver';
-import { type SafePromise, result, error } from "result-interface";
+import { type SafePromise, result, error, isError } from "result-interface";
 import { hasProjection, queryVariables } from "../query";
 
 const { Z3,
@@ -20,7 +20,9 @@ const { Z3,
 
 export interface ISolverResponse {
     result: boolean,
-    smtlib: string
+    smtlib?: string,
+    justification?: string,
+    nestedResponses?: Record<string, ISolverResponse>
 }
 
 export enum SEMANTIC {
@@ -48,6 +50,7 @@ export async function isContained(subQ: Algebra.Operation, superQ: Algebra.Opera
 
 }
 
+
 async function bagSetSemanticContainment(subQRepresentation: IQueryRepresentation, superQRepresentation: IQueryRepresentation): SafePromise<ISolverResponse, string> {
     const subVariable = {
         variables: subQRepresentation.variables, relevantVariables: subQRepresentation.rv
@@ -65,7 +68,45 @@ async function setSemanticContainment(subQRepresentation: IQueryRepresentation, 
     return abstractContainment(tildeCheckIsValid, subQRepresentation, superQRepresentation);
 }
 
+function associateServiceClauses(subService: IService[], superService: IService[]): IServiceQueryAssoc[] {
+    const subQ: Map<string, IService> = new Map(subService.map((el) => [el.url, el]));
+    const superQ: Map<string, IService> = new Map(superService.map((el) => [el.url, el]));
+    const assoc: IServiceQueryAssoc[] = [];
+
+    for (const [key, subService] of subQ) {
+        const superService = superQ.get(key)!;
+        const current: IServiceQueryAssoc = {
+            subQ: subService.query,
+            superQ: superService.query,
+            url: key
+        }
+
+        assoc.push(current);
+    }
+
+    return assoc;
+}
+
 async function abstractContainment(compatibilityCheck: boolean, subQRepresentation: IQueryRepresentation, superQRepresentation: IQueryRepresentation): SafePromise<ISolverResponse, string> {
+    if (!compatibleServiceClauses(subQRepresentation.service, superQRepresentation.service)) {
+        return result({ result: false, justification: "queries does not have the same URL for the service clauses" });
+    }
+
+    const serviceAssoc = associateServiceClauses(subQRepresentation.service, superQRepresentation.service);
+
+    const intermediaryResults: Record<string, ISolverResponse> = {};
+    for (const { subQ, superQ, url } of serviceAssoc) {
+        const res = await setSemanticContainment(subQ, superQ);
+        if (isError(res)) {
+            return res;
+        }
+        if (res.value.result === false) {
+            intermediaryResults[url] = res.value;
+            return result({ result: false, justification: `service at url ${url} is not contained`, serviceSmtlib: intermediaryResults });
+        }
+        intermediaryResults[url] = res.value;
+    }
+
     if (compatibilityCheck) {
         const queryContainmentSmtLibString = generateQueryContainment(subQRepresentation.sigmas, subQRepresentation.rv, superQRepresentation.sigmas, superQRepresentation.rv);
         let config = Z3.mk_config();
@@ -88,6 +129,18 @@ async function abstractContainment(compatibilityCheck: boolean, subQRepresentati
         return result({ result: true, smtlib: thetaEvaluationSmtLibString });
     }
     return error(`Z3 returns ${response}`);
+}
+
+export function compatibleServiceClauses(subService: IService[], superService: IService[]): boolean {
+    const subUrls = new Set(subService.map((el) => el.url));
+    const superUrls = new Set(superService.map((el) => el.url));
+
+    for (const url of subUrls) {
+        if (!superUrls.has(url)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 export function generateQueryContainment(sub_sigmas: Sigma[], sub_rvs: IRv[], super_sigmas: Sigma[], super_rvs: IRv[],): string {
@@ -195,23 +248,35 @@ export function tildeCheckBagSet(subVariables: { variables: Set<string>, relevan
     if (!respSetCheck) {
         return false;
     }
-    const rawRvSuper = new Set(superVariables.relevantVariables.map((el) => el.name));
-    
-    return rawRvSuper.isSubsetOf(subVariables.variables);
+    return superVariables.variables.isSupersetOf(subVariables.variables);
 }
 
 function generateQueryRepresentation(query: Algebra.Operation): IQueryRepresentation {
     const sigmas = generateSigmas(query);
     const ovRv = generateOvRv(query);
     const variables = queryVariables(query);
+    const service = generateService(query);
 
     return {
         sigmas,
         variables,
-        ...ovRv
+        ...ovRv,
+        service
     }
 }
 
+function generateService(query: Algebra.Operation): IService[] {
+    const serviceOperations: IService[] = [];
+    Util.recurseOperation(query, {
+        [Algebra.types.SERVICE]: (op: Algebra.Service) => {
+            const service = new Service(op.input, op.name.value);
+            serviceOperations.push(service);
+            return true;
+        }
+    });
+
+    return serviceOperations;
+}
 /**
  * generate the sigma terms representing the expression of the query see Definition 4.2 and 4.4
  * @param {Algebra.Operation} query 
@@ -317,6 +382,20 @@ class Ov implements IOv {
     }
 }
 
+export interface IService {
+    url: string;
+    query: IQueryRepresentation
+}
+
+export class Service implements IService {
+    public readonly url: string;
+    public readonly query: IQueryRepresentation;
+
+    public constructor(query: Algebra.Operation, url: string) {
+        this.url = url;
+        this.query = generateQueryRepresentation(query);
+    }
+}
 /**
  * A relevant variable (definition 4.6)
  */
@@ -417,4 +496,11 @@ interface IQueryRepresentation {
     variables: Set<string>;
     ov: Ov[];
     rv: Rv[];
+    service: IService[]
+}
+
+interface IServiceQueryAssoc {
+    subQ: IQueryRepresentation,
+    superQ: IQueryRepresentation,
+    url: string
 }

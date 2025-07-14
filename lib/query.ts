@@ -52,6 +52,7 @@ export function hasProjection(query: Algebra.Operation): boolean {
         }
     });
 
+
     if (projectedVariables.size !== usedVariables.size) {
         return true;
     }
