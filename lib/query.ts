@@ -11,6 +11,9 @@ export function queryVariables(query: Algebra.Operation): Set<string> {
     const variables: Set<string> = new Set();
 
     Util.recurseOperation(query, {
+        [Algebra.types.SERVICE]: (_op: Algebra.Service) => {
+            return false;
+        },
         [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
             if (op.subject.termType === "Variable") {
                 variables.add(op.subject.value);

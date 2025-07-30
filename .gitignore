@@ -179,3 +179,5 @@ dist
 *.pdf
 
 test.json
+
+.vscode

@@ -4,31 +4,40 @@
 (declare-const <default_graph> RDFValue)
 
 ; ------------ IRIs ---------------------------------
-(declare-const <example_org_age> RDFValue)
-(declare-const <example_org_job> RDFValue)
+(declare-const <example_com_> RDFValue)
 ; ------------ Literals -----------------------------
 
 ; ------------ Variables ----------------------------
 (declare-const <s> RDFValue)
-(declare-const <age> RDFValue)
-(declare-const <job> RDFValue)
+(declare-const <p> RDFValue)
+(declare-const <o> RDFValue)
+(declare-const <o2> RDFValue)
 ; ------------ Conjecture ---------------------------
+
 (assert
 	(and
-		(or (P <s> <example_org_age> <age> <default_graph>))
+		(or (P <s> <p> <o> <default_graph>))
+		(or (P <s> <example_com_> <o2> <default_graph>))
 	)
 )
 
-(assert 
-	(not 
-		(exists ((<e_s> RDFValue) (<e_age> RDFValue))
+
+(assert
+	(exists ((<e_s> RDFValue) (<e_p> RDFValue) (<e_o> RDFValue) (<e_o2> RDFValue))
+		(and
 			(and
-				(or (P <s> <example_org_job> <job> <default_graph>))
-				(or (P <s> <example_org_age> <age> <default_graph>))
 				(= <e_s> <s>)
-				(= <e_age> <age>)
+				(= <e_p> <p>)
+				(= <e_o> <o>)
+				(= <e_o2> <o2>)
 			)
-		)
+			(not
+				(and
+					(or (P <s> <p> <o> <default_graph>))
+					(or (P <s> <example_com_> <o2> <default_graph>))
+				)
+			)
+		)    
 	)
 )
 ; ------------ Check-Sat ----------------------------

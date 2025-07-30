@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { generateOvRv, generateThetaSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC } from '../lib/approaches/specs';
 import { translate } from "sparqlalgebrajs";
-import { instantiateTemplate, instantiateTemplatePhiConjecture, instantiateTriplePatternStatementTemplate } from '../lib/approaches/templates';
-import { isError, isResult, type IError, result } from 'result-interface';
+import { instantiateTemplate } from '../lib/approaches/templates';
+import { isError, result } from 'result-interface';
 
 describe(renameIriforSmt.name, () => {
 	it("should rename an iri", () => {
@@ -276,20 +276,18 @@ describe(generateThetaSmtLibString.name, () => {
 
 
 (assert
-		(not
-			(exists ((<e_swisslipid> RDFValue))
-				(and
-					(and
-						(= <e_swisslipid> <swisslipid>)
-					)
-					(not
-						(and
-							(or (P <swisslipid> <w3_org_2002_07_owl_equivalentClass> <chebi> <default_graph>))
-						)
-					)
-				)    
+	(exists ((<e_swisslipid> RDFValue))
+		(and
+			(and
+				(= <e_swisslipid> <swisslipid>)
 			)
-		)
+			(not
+				(and
+					(or (P <swisslipid> <w3_org_2002_07_owl_equivalentClass> <chebi> <default_graph>))
+				)
+			)
+		)    
+	)
 )
 ; ------------ Check-Sat ----------------------------
 (check-sat)
@@ -444,7 +442,7 @@ describe(isContained.name, () => {
 			const resp = await isContained(subQ, superQ);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 
 		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
@@ -462,7 +460,7 @@ describe(isContained.name, () => {
 
 			const resp = await isContained(subQ, superQ);
 
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 
 		it("should return true given queries with multiple triple patterns", async () => {
@@ -471,7 +469,7 @@ describe(isContained.name, () => {
 
 			const resp = await isContained(subQ, superQ);
 
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 
 		it("should return false given queries with multiple triple patterns", async () => {
@@ -480,7 +478,7 @@ describe(isContained.name, () => {
 
 			const resp = await isContained(subQ, superQ);
 
-			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 
 		it("should return false given queries with multiple non identical projections", async () => {
@@ -510,7 +508,7 @@ describe(isContained.name, () => {
 
 			const resp = await isContained(subQ, superQ);
 
-			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 
 		it('should return false given an example contained query', async () => {
@@ -522,7 +520,7 @@ describe(isContained.name, () => {
 					ex:age ?age .				
 				}`);
 
-			
+
 			const superQ = translate(`
 			PREFIX ex: <http://example.org/>
 
@@ -530,11 +528,11 @@ describe(isContained.name, () => {
 			?s ex:age ?age .
 			}`);
 
-			
+
 
 			const resp = await isContained(subQ, superQ);
 
-			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 	});
 
@@ -546,7 +544,17 @@ describe(isContained.name, () => {
 			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String) }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+		});
+
+		it("should return contain given a contained query", async () => {
+			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?o ?p ?s.}");
+			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
+
+			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+
+			expect(isError(resp)).toBe(false);
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses:{} }));
 		});
 
 		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
@@ -558,7 +566,7 @@ describe(isContained.name, () => {
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
 
-		it("should return true given a sub query with more triple patterns", async () => {
+		it("should return false given a sub query with more triple patterns", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s <http://example.com#> ?o2.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 
@@ -567,7 +575,7 @@ describe(isContained.name, () => {
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
 
-		it("should return true given queries with multiple triple patterns", async () => {
+		it("should return false given queries with multiple triple patterns", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s ?p2 <http://example.com#>. ?s ?p3 <http://example.com#>.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s ?p2 <http://example.com#>.}");
 
@@ -615,6 +623,83 @@ describe(isContained.name, () => {
 			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
+		});
+	});
+
+	describe("bag-set service clauses", () => {
+		it("should return contain given 2 identical queries", async () => {
+			const subQ = translate("SELECT ?s WHERE { SERVICE <http://example.com> { ?s ?p ?o}}");
+			const superQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");
+
+			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+
+			expect(isError(resp)).toBe(false);
+			expect(resp).toStrictEqual(result({
+				result: true,
+				nestedResponses: {
+					"http://example.com": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {}
+					}
+				}
+			}));
+		});
+
+		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
+			const subQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");
+			const superQ = translate("SELECT ?o WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");
+
+			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+
+			expect(resp).toStrictEqual(result({
+				result: false,
+				nestedResponses: {
+					"http://example.com": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {}
+					}
+				}
+			}));
+		});
+
+		it("should return true given a sub query with more triple patterns", async () => {
+			const subQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> {?s ?p ?o. ?s <http://example.com#> ?o2.}}");
+			const superQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> {?s ?p ?o}}");
+
+			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+
+			expect(resp).toStrictEqual(result({
+				result: true,
+				nestedResponses: {
+					"http://example.com": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {}
+					}
+				}
+			}));
+		});
+
+		it("should return contain given 2 identical queries", async () => {
+			const subQ = translate("SELECT ?s WHERE { ?s ?p <http://example.com>. ?p <http://example.com> ?s. SERVICE <http://example.com> { ?s ?p ?o}}");
+			const superQ = translate("SELECT ?s WHERE { ?s ?p <http://example.com>. SERVICE <http://example.com> { ?s ?p ?o}}");
+
+			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+
+			expect(isError(resp)).toBe(false);
+			expect(resp).toStrictEqual(result({
+				result: true,
+				smtlib: expect.any(String),
+				nestedResponses: {
+					"http://example.com": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {}
+					}
+				}
+			}));
 		});
 	});
 });

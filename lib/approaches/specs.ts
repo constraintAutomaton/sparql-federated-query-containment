@@ -75,6 +75,11 @@ function associateServiceClauses(subService: IService[], superService: IService[
 
     for (const [key, subService] of subQ) {
         const superService = superQ.get(key)!;
+
+        const rv = relevantVariableService(superService, subService);
+        subService.query.rv = rv;
+        superService.query.rv = rv;
+
         const current: IServiceQueryAssoc = {
             subQ: subService.query,
             superQ: superService.query,
@@ -85,6 +90,14 @@ function associateServiceClauses(subService: IService[], superService: IService[
     }
 
     return assoc;
+}
+
+function relevantVariableService(service1: IService, service2: IService): IRv[] {
+    const rv1 = service1.query.variables;
+    const rv2 = service2.query.variables;
+
+    const intersection = rv1.intersection(rv2);
+    return Array.from(intersection).map((el)=>{return {name:el}});
 }
 
 async function abstractContainment(compatibilityCheck: boolean, subQRepresentation: IQueryRepresentation, superQRepresentation: IQueryRepresentation): SafePromise<ISolverResponse, string> {
@@ -107,18 +120,33 @@ async function abstractContainment(compatibilityCheck: boolean, subQRepresentati
         intermediaryResults[url] = res.value;
     }
 
+    if (emptyQuery(superQRepresentation)) {
+        if (Object.keys(intermediaryResults).length === 0) {
+            return result({ result: false, justification: "the super query have no first level BGP" });
+        }
+        if (compatibilityCheck) {
+            return result({ result: true, nestedResponses: intermediaryResults });
+        }
+        return result({ result: false, nestedResponses: intermediaryResults });
+    }
+
+    if (emptyQuery(subQRepresentation)) {
+        return result({ result: true, nestedResponses: intermediaryResults });
+    }
+
     if (compatibilityCheck) {
         const queryContainmentSmtLibString = generateQueryContainment(subQRepresentation.sigmas, subQRepresentation.rv, superQRepresentation.sigmas, superQRepresentation.rv);
         let config = Z3.mk_config();
         let ctx = Z3.mk_context_rc(config);
         const response = await Z3.eval_smtlib2_string(ctx, queryContainmentSmtLibString);
         if (response.startsWith("unsat")) {
-            return result({ result: true, smtlib: queryContainmentSmtLibString });
+            return result({ result: true, smtlib: queryContainmentSmtLibString, nestedResponses: intermediaryResults });
         } else if (response.startsWith("sat")) {
-            return result({ result: false, smtlib: queryContainmentSmtLibString });
+            return result({ result: false, smtlib: queryContainmentSmtLibString, nestedResponses: intermediaryResults });
         }
         return error(`Z3 returns ${response}`);
     }
+
     const thetaEvaluationSmtLibString = generateThetaSmtLibString(subQRepresentation.sigmas, subQRepresentation.rv);
     let config = Z3.mk_config();
     let ctx = Z3.mk_context_rc(config);
@@ -141,6 +169,10 @@ export function compatibleServiceClauses(subService: IService[], superService: I
         }
     }
     return true;
+}
+
+function emptyQuery(representation: IQueryRepresentation): boolean {
+    return representation.sigmas.length === 0;
 }
 
 export function generateQueryContainment(sub_sigmas: Sigma[], sub_rvs: IRv[], super_sigmas: Sigma[], super_rvs: IRv[],): string {
@@ -285,6 +317,9 @@ function generateService(query: Algebra.Operation): IService[] {
 export function generateSigmas(query: Algebra.Operation): Sigma[] {
     const result: Sigma[] = [];
     Util.recurseOperation(query, {
+        [Algebra.types.SERVICE]: (_op: Algebra.Service) => {
+            return false;
+        },
         [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
             const sigma: ISigmaTerm = new SigmaTerm(
                 op.subject,
@@ -394,6 +429,7 @@ export class Service implements IService {
     public constructor(query: Algebra.Operation, url: string) {
         this.url = url;
         this.query = generateQueryRepresentation(query);
+        this.query.rv = Array.from(this.query.variables).map((el) => { return { name: el } });
     }
 }
 /**
