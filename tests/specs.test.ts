@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { generateOvRv, generateThetaSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC } from '../lib/approaches/specs';
+import { generateOvRv, generateThetaSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC } from '../lib/specs';
 import { translate } from "sparqlalgebrajs";
-import { instantiateTemplate } from '../lib/approaches/templates';
+import { instantiateTemplate } from '../lib/templates';
 import { isError, result } from 'result-interface';
 
 describe(renameIriforSmt.name, () => {

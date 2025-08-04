@@ -1,14 +1,45 @@
 {
-  "name": "materialized_view_query_containment",
-  "module": "index.ts",
+  "name": "sparql-federated-query-containment",
+  "module": "./dist/esm/index.js",
   "type": "module",
+  "version": "0.0.0",
+  "homepage": "https://github.com/constraintAutomaton/sparql-federated-query-containment",
+  "license": "MIT",
+  "author": {
+    "name": "Bryan-Elliott Tam"
+  },
+  "description": "An experimental TypeScript library for query containment in federated SPARQL queries, based on the Specs approach.",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs"
+    }
+  },
+  "main": "./dist/cjs/index.cjs",
+  "types": "./dist/index.d.ts",
+  "keywords": [
+    "SPARQL",
+    "query containment",
+    "RDF"
+  ],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "devDependencies": {
     "@types/bun": "latest",
     "ts-node": "^10.9.2",
     "ts-node-esm": "^0.0.6",
     "tsx": "^4.20.2",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.4"
+    "vitest": "^3.1.4",
+    "@typescript-eslint/eslint-plugin": "^6.16.0",
+    "@typescript-eslint/parser": "^6.16.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.2",
+    "prettier": "^3.6.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -22,7 +53,13 @@
     "z3-solver": "^4.15.1"
   },
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "format": "prettier --write 'lib/**/*.{ts,tsx,json}'",
+    "lint": "eslint 'lib/**/*.{ts,tsx}'",
+    "build:all": "bun run build && bun run build:cjs && tsc --emitDeclarationOnly",
+    "build": "bun build ./lib/index.ts --outdir dist --sourcemap --outdir dist/esm --production",
+    "build:cjs": "bun build ./lib/index.ts --format cjs --outdir ./dist/cjs --sourcemap --production && mv ./dist/cjs/index.js ./dist/cjs/index.cjs",
+    "publish-npm": "bun run build:all && npm publish"
   },
   "packageManager": "yarn@4.9.2"
 }
