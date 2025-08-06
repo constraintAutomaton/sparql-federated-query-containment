@@ -278,26 +278,23 @@ describe(queryVariables.name, () => {
         PREFIX up: <http://purl.uniprot.org/core/>
         SELECT ?swisslipid  ?organism {
         ?swisslipid owl:equivalentClass ?chebi .
+
         SERVICE <https://sparql.rhea-db.org/sparql> {
             ?rhea rh:side ?compound .
             ?compound rh:chebi ?metabolite .
         }
+
         SERVICE <https://sparql.uniprot.org/sparql> {
             ?catalyticActivityAnnotation up:catalyticActivity ?rhea .
             ?protein up:annotation ?catalyticActivityAnnotation ;
                     up:organism ?organism .
         }
+
         }`;
         const variables = queryVariables(translate(query));
         const expectedVariables = new Set([
             "swisslipid",
-            "organism",
-            "chebi",
-            "compound",
-            "metabolite",
-            "catalyticActivityAnnotation",
-            "rhea",
-            "protein"
+            "chebi"
         ]);
         expect(variables).toStrictEqual(expectedVariables);
     });

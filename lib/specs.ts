@@ -20,6 +20,14 @@ import {
 import * as Z3_SOLVER from "z3-solver";
 import { type SafePromise, result, error, isError } from "result-interface";
 import { hasProjection, queryVariables } from "./query";
+import { type IOptions } from 'sparql-cache-client';
+
+export type Z3_FN = Z3_SOLVER.Z3HighLevel & Z3_SOLVER.Z3LowLevel;
+
+export interface ISolverOption extends IOptions {
+  semantic: SEMANTIC,
+  z3: Z3_FN
+}
 
 export interface ISolverResponse {
   result: boolean;
@@ -37,23 +45,24 @@ export enum SEMANTIC {
 export async function isContained(
   subQ: Algebra.Operation,
   superQ: Algebra.Operation,
-  semantic: SEMANTIC = SEMANTIC.SET,
+  option: ISolverOption,
 ): SafePromise<ISolverResponse, string> {
   // generate the variable of the specs formalism
   const subQRepresentation = generateQueryRepresentation(subQ);
   const superQRepresentation = generateQueryRepresentation(superQ);
 
-  switch (semantic) {
+  switch (option.semantic) {
     case SEMANTIC.SET:
-      return setSemanticContainment(subQRepresentation, superQRepresentation);
+      return setSemanticContainment(subQRepresentation, superQRepresentation, option.z3);
     case SEMANTIC.BAG_SET:
       if (hasProjection(subQ)) {
         return bagSetSemanticContainment(
           subQRepresentation,
           superQRepresentation,
+          option.z3
         );
       }
-      return setSemanticContainment(subQRepresentation, superQRepresentation);
+      return setSemanticContainment(subQRepresentation, superQRepresentation, option.z3);
     case SEMANTIC.BAG:
       return error("not implemented");
   }
@@ -62,6 +71,7 @@ export async function isContained(
 async function bagSetSemanticContainment(
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
+  z3: Z3_FN
 ): SafePromise<ISolverResponse, string> {
   const subVariable = {
     variables: subQRepresentation.variables,
@@ -77,12 +87,14 @@ async function bagSetSemanticContainment(
     tildeCheckIsValid,
     subQRepresentation,
     superQRepresentation,
+    z3
   );
 }
 
 async function setSemanticContainment(
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
+  z3: Z3_FN
 ): SafePromise<ISolverResponse, string> {
   const tildeCheckIsValid = tildeCheck(
     subQRepresentation.rv,
@@ -92,6 +104,7 @@ async function setSemanticContainment(
     tildeCheckIsValid,
     subQRepresentation,
     superQRepresentation,
+    z3
   );
 }
 
@@ -143,9 +156,9 @@ async function abstractContainment(
   compatibilityCheck: boolean,
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
+  z3: Z3_FN
 ): SafePromise<ISolverResponse, string> {
-  const { Z3 } = await Z3_SOLVER.init();
-
+  const { Z3 } = z3;
   if (
     !compatibleServiceClauses(
       subQRepresentation.service,
@@ -166,7 +179,7 @@ async function abstractContainment(
 
   const intermediaryResults: Record<string, ISolverResponse> = {};
   for (const { subQ, superQ, url } of serviceAssoc) {
-    const res = await setSemanticContainment(subQ, superQ);
+    const res = await setSemanticContainment(subQ, superQ, z3);
     if (isError(res)) {
       return res;
     }
@@ -324,6 +337,7 @@ function generatePrelude(sigmas: Sigma[]): {
   variable: string[];
   tp: string[];
 } {
+  
   let iriDeclarations: string[] = [];
   let literalDeclarations: string[] = [];
   let variableDeclarations: string[] = [];
@@ -603,14 +617,19 @@ export interface ISigmaTerm {
   iriDeclarations: string[];
   literalDeclarations: string[];
   variableDeclarations: string[];
+
+  variables: string[];
 }
 
 export class SigmaTerm implements ISigmaTerm {
   private static literalCounter = 0;
+  private static literalMap: Map<string, number> = new Map();
 
   public readonly subject: string;
   public readonly predicate: string;
   public readonly object: string;
+
+  public readonly variables: string[];
 
   public readonly iriDeclarations: string[];
   public readonly literalDeclarations: string[];
@@ -637,6 +656,26 @@ export class SigmaTerm implements ISigmaTerm {
     this.iriDeclarations = smtLibDeclaration.iri;
     this.literalDeclarations = smtLibDeclaration.literal;
     this.variableDeclarations = smtLibDeclaration.variable;
+
+    this.variables = SigmaTerm.generateVariables(subject, predicate, object);
+  }
+
+  private static generateVariables(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term): string[] {
+    const variables: string[] = [];
+
+    if (subject.termType === "Variable") {
+      variables.push(subject.value);
+    }
+
+    if (predicate.termType === "Variable") {
+      variables.push(predicate.value);
+    }
+
+    if (object.termType === "Variable") {
+      variables.push(object.value);
+    }
+
+    return variables;
   }
 
   public static generateDeclareSmtLibString(constantName: string): string {
@@ -647,8 +686,15 @@ export class SigmaTerm implements ISigmaTerm {
     if (term.termType === "NamedNode") {
       return `<${renameIriforSmt(term.value)}>`;
     } else if (term.termType === "Literal") {
-      const name = `<l_${SigmaTerm.literalCounter}>`;
-      SigmaTerm.literalCounter += 1;
+      const cache = SigmaTerm.literalMap.get(term.value);
+      let value = SigmaTerm.literalCounter
+      if (cache !== undefined) {
+        value = cache;
+      } else {
+        SigmaTerm.literalMap.set(term.value, value);
+        SigmaTerm.literalCounter += 1;
+      }
+      const name = `<l_${value}>`;
       return name;
     } else if (term.termType === "Variable" || term.termType === "BlankNode") {
       return `<${term.value}>`;

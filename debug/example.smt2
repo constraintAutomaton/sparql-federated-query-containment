@@ -4,40 +4,43 @@
 (declare-const <default_graph> RDFValue)
 
 ; ------------ IRIs ---------------------------------
-(declare-const <example_com_> RDFValue)
+(declare-const <w3_org_1999_02_22_rdf_syntax_ns_type> RDFValue)
+(declare-const <example_org_GraduateStudent> RDFValue)
+(declare-const <example_org_Department> RDFValue)
+(declare-const <example_org_memberOf> RDFValue)
+(declare-const <example_org_subOrganizationOf> RDFValue)
+(declare-const <example_org_University1> RDFValue)
+(declare-const <example_org_email> RDFValue)
 ; ------------ Literals -----------------------------
 
 ; ------------ Variables ----------------------------
-(declare-const <s> RDFValue)
-(declare-const <p> RDFValue)
-(declare-const <o> RDFValue)
-(declare-const <o2> RDFValue)
+(declare-const <x> RDFValue)
+(declare-const <y> RDFValue)
+(declare-const <z> RDFValue)
 ; ------------ Conjecture ---------------------------
-
 (assert
 	(and
-		(or (P <s> <p> <o> <default_graph>))
-		(or (P <s> <example_com_> <o2> <default_graph>))
+		(or (P <x> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_GraduateStudent> <default_graph>))
+		(or (P <y> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_Department> <default_graph>))
+		(or (P <x> <example_org_memberOf> <y> <default_graph>))
+		(or (P <y> <example_org_subOrganizationOf> <example_org_University1> <default_graph>))
+		(or (P <x> <example_org_email> <z> <default_graph>))
 	)
 )
 
-
-(assert
-	(exists ((<e_s> RDFValue) (<e_p> RDFValue) (<e_o> RDFValue) (<e_o2> RDFValue))
-		(and
+(assert 
+	(not 
+		(exists ((<e_x> RDFValue) (<e_z> RDFValue) (<u> RDFValue))
 			(and
-				(= <e_s> <s>)
-				(= <e_p> <p>)
-				(= <e_o> <o>)
-				(= <e_o2> <o2>)
+				(or (P <x> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_GraduateStudent> <default_graph>))
+				(or (P <y> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_Department> <default_graph>))
+				(or (P <x> <example_org_memberOf> <y> <default_graph>))
+				(or (P <y> <example_org_subOrganizationOf> <u> <default_graph>))
+				(or (P <x> <example_org_email> <z> <default_graph>))
+				(= <e_x> <x>)
+				(= <e_z> <z>)
 			)
-			(not
-				(and
-					(or (P <s> <p> <o> <default_graph>))
-					(or (P <s> <example_com_> <o2> <default_graph>))
-				)
-			)
-		)    
+		)
 	)
 )
 ; ------------ Check-Sat ----------------------------

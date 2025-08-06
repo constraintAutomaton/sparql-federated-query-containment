@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { generateOvRv, generateThetaSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC } from '../lib/specs';
+import { generateOvRv, generateThetaSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC, ISolverOption, tildeCheckBagSet } from '../lib/specs';
 import { translate } from "sparqlalgebrajs";
 import { instantiateTemplate } from '../lib/templates';
 import { isError, result } from 'result-interface';
+import * as Z3_SOLVER from "z3-solver";
 
 describe(renameIriforSmt.name, () => {
 	it("should rename an iri", () => {
@@ -395,51 +396,22 @@ describe(generateThetaSmtLibString.name, () => {
 
 });
 
-describe(tildeCheck.name, () => {
-	it("should retun false given two relevant variable set that do not have the same size", () => {
-		const rv1: IRv[] = [{ name: "foo1" }, { name: "foo2" }, { name: "foo3" }];
-		const rv2: IRv[] = [{ name: "bar1" }, { name: "bar2" },];
 
-		const resp = tildeCheck(rv1, rv2);
+describe(isContained.name, async () => {
+	const Z3 = await Z3_SOLVER.init();
 
-		expect(resp).toBe(false);
-	});
-
-	it("should retun false given two identical relevant variable sets", () => {
-		const rv1: IRv[] = [{ name: "foo1" }, { name: "foo2" }, { name: "foo3" }];
-		const rv2: IRv[] = [{ name: "bar1" }, { name: "bar2" }, { name: "bar3" }];
-
-		const resp = tildeCheck(rv1, rv2);
-
-		expect(resp).toBe(false);
-	});
-
-	it("should retun true given two relevant variable sets", () => {
-		const rv1: IRv[] = [{ name: "foo1" }, { name: "foo2" }, { name: "foo3" }];
-		const rv2: IRv[] = [{ name: "bar1" }, { name: "bar2" }, { name: "bar3" }];
-
-		const resp = tildeCheck(rv1, rv2);
-
-		expect(resp).toBe(false);
-	});
-
-	it("should retun true given two empty relevant variable sets", () => {
-		const rv1: IRv[] = [];
-		const rv2: IRv[] = [];
-
-		const resp = tildeCheck(rv1, rv2);
-
-		expect(resp).toBe(true);
-	});
-});
-
-describe(isContained.name, () => {
 	describe("set semantic", () => {
+		const option: ISolverOption = {
+			semantic: SEMANTIC.SET,
+			z3: Z3,
+			sources: []
+		};
+		
 		it("should return contain given 2 identical queries", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
 			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
@@ -449,7 +421,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 			const superQ = translate("SELECT ?o WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -458,7 +430,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s <http://example.com#> ?o2.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
@@ -467,7 +439,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s ?p2 <http://example.com#>. ?s ?p3 <http://example.com#>.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s ?p2 <http://example.com#>.}");
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
@@ -476,7 +448,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s1 ?p2 ?o2. ?s3 ?p3 ?o3.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p <http://example.com#1>. ?s1 ?p2 ?o2.}");
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {} }));
 		});
@@ -485,7 +457,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT * WHERE {?s ?p ?o. ?s1 ?p2 ?o2. ?s3 ?p3 ?o3.}");
 			const superQ = translate("SELECT * WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -506,7 +478,7 @@ describe(isContained.name, () => {
 				ex:age ?age .				
 			}`);
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {} }));
 		});
@@ -530,18 +502,24 @@ describe(isContained.name, () => {
 
 
 
-			const resp = await isContained(subQ, superQ);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 	});
 
 	describe("bag-set semantic", () => {
+		const option: ISolverOption = {
+			semantic: SEMANTIC.BAG_SET,
+			z3: Z3,
+			sources: []
+		};
+
 		it("should return contain given 2 identical queries", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
 			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
@@ -551,17 +529,17 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?o ?p ?s.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses:{} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
 		});
 
 		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 			const superQ = translate("SELECT ?o WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -570,7 +548,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s <http://example.com#> ?o2.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -579,7 +557,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s ?p2 <http://example.com#>. ?s ?p3 <http://example.com#>.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s ?p2 <http://example.com#>.}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -588,7 +566,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s1 ?p2 ?o2. ?s3 ?p3 ?o3.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p <http://example.com#1>. ?s1 ?p2 ?o2.}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -597,7 +575,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT * WHERE {?s ?p ?o. ?s1 ?p2 ?o2. ?s3 ?p3 ?o3.}");
 			const superQ = translate("SELECT * WHERE {?s ?p ?o}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
@@ -620,18 +598,24 @@ describe(isContained.name, () => {
 			?s ex:age ?age .
 			}`);
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
 	});
 
 	describe("bag-set service clauses", () => {
+		const option: ISolverOption = {
+			semantic: SEMANTIC.BAG_SET,
+			z3: Z3,
+			sources: []
+		};
+		
 		it("should return contain given 2 identical queries", async () => {
 			const subQ = translate("SELECT ?s WHERE { SERVICE <http://example.com> { ?s ?p ?o}}");
 			const superQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
 			expect(resp).toStrictEqual(result({
@@ -650,7 +634,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");
 			const superQ = translate("SELECT ?o WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({
 				result: false,
@@ -668,7 +652,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> {?s ?p ?o. ?s <http://example.com#> ?o2.}}");
 			const superQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> {?s ?p ?o}}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(resp).toStrictEqual(result({
 				result: true,
@@ -686,7 +670,7 @@ describe(isContained.name, () => {
 			const subQ = translate("SELECT ?s WHERE { ?s ?p <http://example.com>. ?p <http://example.com> ?s. SERVICE <http://example.com> { ?s ?p ?o}}");
 			const superQ = translate("SELECT ?s WHERE { ?s ?p <http://example.com>. SERVICE <http://example.com> { ?s ?p ?o}}");
 
-			const resp = await isContained(subQ, superQ, SEMANTIC.BAG_SET);
+			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
 			expect(resp).toStrictEqual(result({

@@ -2,7 +2,7 @@
   "name": "sparql-federated-query-containment",
   "module": "./dist/esm/index.js",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "homepage": "https://github.com/constraintAutomaton/sparql-federated-query-containment",
   "license": "MIT",
   "author": {
@@ -11,8 +11,14 @@
   "description": "An experimental TypeScript library for query containment in federated SPARQL queries, based on the Specs approach.",
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
     }
   },
   "main": "./dist/cjs/index.cjs",
@@ -39,18 +45,19 @@
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "@rdfjs/types": "^2.0.1"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@rdfjs/types": "^2.0.1",
     "rdf-data-factory": "^2.0.2",
     "rdf-isomorphic": "^2.0.1",
-    "result-interface": "^2.3.1",
+    "result-interface": "^2.3.3",
+    "sparql-cache-client": "^0.1.4",
     "sparqlalgebrajs": "^5.0.0",
-    "z3-solver": "^4.15.1"
+    "z3-solver": "^4.15.2"
   },
   "scripts": {
     "test": "vitest",
