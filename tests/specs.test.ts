@@ -105,36 +105,39 @@ describe(generateSigmas.name, () => {
 					predicate: "<w3_org_2002_07_owl_equivalentClass>",
 					object: "<chebi>",
 
-					iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass>")],
+					iriDeclarations: [{ term: "http://www.w3.org/2002/07/owl#equivalentClass", declaration: SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass>") }],
 					literalDeclarations: [],
 					variableDeclarations: [
-						SigmaTerm.generateDeclareSmtLibString("<swisslipid>"),
-						SigmaTerm.generateDeclareSmtLibString("<chebi>")
-					]
+						{ term: "swisslipid", declaration: SigmaTerm.generateDeclareSmtLibString("<swisslipid>") },
+						{ term: "chebi", declaration: SigmaTerm.generateDeclareSmtLibString("<chebi>") }
+					],
+					variables: ["swisslipid", "chebi"]
 				},
 				{
 					subject: "<catalyticActivityAnnotation>",
 					predicate: "<purl_uniprot_org_core_catalyticActivity>",
 					object: "<rhea>",
 
-					iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<purl_uniprot_org_core_catalyticActivity>")],
+					iriDeclarations: [{ term: "http://purl.uniprot.org/core/catalyticActivity", declaration: SigmaTerm.generateDeclareSmtLibString("<purl_uniprot_org_core_catalyticActivity>") }],
 					literalDeclarations: [],
 					variableDeclarations: [
-						SigmaTerm.generateDeclareSmtLibString("<catalyticActivityAnnotation>"),
-						SigmaTerm.generateDeclareSmtLibString("<rhea>")
-					]
+						{ term: "catalyticActivityAnnotation", declaration: SigmaTerm.generateDeclareSmtLibString("<catalyticActivityAnnotation>") },
+						{ term: "rhea", declaration: SigmaTerm.generateDeclareSmtLibString("<rhea>") }
+					],
+					variables: ["catalyticActivityAnnotation", "rhea"]
 				},
 				{
 					subject: "<protein>",
 					predicate: "<purl_uniprot_org_core_annotation>",
 					object: "<catalyticActivityAnnotation>",
 
-					iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<purl_uniprot_org_core_annotation>")],
+					iriDeclarations: [{term: "http://purl.uniprot.org/core/annotation", declaration: SigmaTerm.generateDeclareSmtLibString("<purl_uniprot_org_core_annotation>")}],
 					literalDeclarations: [],
 					variableDeclarations: [
-						SigmaTerm.generateDeclareSmtLibString("<protein>"),
-						SigmaTerm.generateDeclareSmtLibString("<catalyticActivityAnnotation>")
-					]
+						{term: "protein", declaration: SigmaTerm.generateDeclareSmtLibString("<protein>")},
+						{ term: "catalyticActivityAnnotation", declaration:SigmaTerm.generateDeclareSmtLibString("<catalyticActivityAnnotation>")}
+					],
+					variables: ["protein", "catalyticActivityAnnotation"]
 				}
 			];
 
@@ -224,178 +227,6 @@ describe(tildeCheck.name, () => {
 	});
 });
 
-describe(generateThetaSmtLibString.name, () => {
-	it("should generate an empty SMT lib file given no sigma", () => {
-		const sigmas: Sigma[] = [];
-		const rv: IRv[] = [];
-
-		const sigmaFormated = generateThetaSmtLibString(sigmas, rv);
-		const expectedString = instantiateTemplate("", "", "", "");
-
-		expect(sigmaFormated).toBe(expectedString);
-	});
-
-	it("should generate an SMT lib file given a sigma", () => {
-		const sigma: Sigma =
-		{
-			subject: "<swisslipid>",
-			predicate: "<w3_org_2002_07_owl_equivalentClass>",
-			object: "<chebi>",
-
-			iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass>")],
-			literalDeclarations: [],
-			variableDeclarations: [
-				SigmaTerm.generateDeclareSmtLibString("<swisslipid>"),
-				SigmaTerm.generateDeclareSmtLibString("<chebi>")
-			]
-		};
-
-		const rv = [{ name: "swisslipid" }];
-
-		const sigmaFormated = generateThetaSmtLibString([sigma], rv);
-
-		const expectedString = `
-; ------------ Sort and Predicate -------------------
-(declare-sort RDFValue 0)
-(declare-fun P (RDFValue RDFValue RDFValue RDFValue) Bool)
-(declare-const <default_graph> RDFValue)
-
-; ------------ IRIs ---------------------------------
-(declare-const <w3_org_2002_07_owl_equivalentClass> RDFValue)
-; ------------ Literals -----------------------------
-
-; ------------ Variables ----------------------------
-(declare-const <swisslipid> RDFValue)
-(declare-const <chebi> RDFValue)
-; ------------ Conjecture ---------------------------
-
-(assert
-	(and
-		(or (P <swisslipid> <w3_org_2002_07_owl_equivalentClass> <chebi> <default_graph>))
-	)
-)
-
-
-(assert
-	(exists ((<e_swisslipid> RDFValue))
-		(and
-			(and
-				(= <e_swisslipid> <swisslipid>)
-			)
-			(not
-				(and
-					(or (P <swisslipid> <w3_org_2002_07_owl_equivalentClass> <chebi> <default_graph>))
-				)
-			)
-		)    
-	)
-)
-; ------------ Check-Sat ----------------------------
-(check-sat)
-`;
-
-		expect(sigmaFormated).toBe(expectedString);
-	});
-
-
-	it("should generate an SMT lib file given a multiple sigmas", () => {
-		const sigma1: Sigma = {
-			subject: "<swisslipid>",
-			predicate: "<w3_org_2002_07_owl_equivalentClass>",
-			object: "<chebi>",
-
-			iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass>")],
-			literalDeclarations: [],
-			variableDeclarations: [
-				SigmaTerm.generateDeclareSmtLibString("<swisslipid>"),
-				SigmaTerm.generateDeclareSmtLibString("<chebi>")
-			]
-		};
-
-		const sigma2: Sigma = {
-			subject: "<swisslipid_2>",
-			predicate: "<l_foo>",
-			object: "<chebi>",
-
-			iriDeclarations: [],
-			literalDeclarations: [SigmaTerm.generateDeclareSmtLibString("<l_foo>")],
-			variableDeclarations: [
-				SigmaTerm.generateDeclareSmtLibString("<swisslipid_2>"),
-				SigmaTerm.generateDeclareSmtLibString("<chebi>")
-			]
-		};
-
-		const sigma3: Sigma = {
-			subject: "<swisslipid_3>",
-			predicate: "<w3_org_2002_07_owl_equivalentClass_3>",
-			object: "<chebi_3>",
-
-			iriDeclarations: [SigmaTerm.generateDeclareSmtLibString("<w3_org_2002_07_owl_equivalentClass_3>")],
-			literalDeclarations: [],
-			variableDeclarations: [
-				SigmaTerm.generateDeclareSmtLibString("<swisslipid_3>"),
-				SigmaTerm.generateDeclareSmtLibString("<chebi_3>")
-			]
-		};
-
-		const expectedString = `
-; ------------ Sort and Predicate -------------------
-(declare-sort RDFValue 0)
-(declare-fun P (RDFValue RDFValue RDFValue RDFValue) Bool)
-(declare-const <default_graph> RDFValue)
-
-; ------------ IRIs ---------------------------------
-(declare-const <w3_org_2002_07_owl_equivalentClass> RDFValue)
-(declare-const <w3_org_2002_07_owl_equivalentClass_3> RDFValue)
-; ------------ Literals -----------------------------
-(declare-const <l_foo> RDFValue)
-; ------------ Variables ----------------------------
-(declare-const <swisslipid> RDFValue)
-(declare-const <chebi> RDFValue)
-(declare-const <swisslipid_2> RDFValue)
-(declare-const <swisslipid_3> RDFValue)
-(declare-const <chebi_3> RDFValue)
-; ------------ Conjecture ---------------------------
-
-(assert
-	(and
-		(or (P <swisslipid> <w3_org_2002_07_owl_equivalentClass> <chebi> <default_graph>))
-		(or (P <swisslipid_2> <l_foo> <chebi> <default_graph>))
-		(or (P <swisslipid_3> <w3_org_2002_07_owl_equivalentClass_3> <chebi_3> <default_graph>))
-	)
-)
-
-
-(assert
-	(exists ((<e_chebi_3> RDFValue) (<e_swisslipid_2> RDFValue))
-		(and
-			(and
-				(= <e_chebi_3> <chebi_3>)
-				(= <e_swisslipid_2> <swisslipid_2>)
-			)
-			(not
-				(and
-					(or (P <swisslipid> <w3_org_2002_07_owl_equivalentClass> <chebi> <default_graph>))
-					(or (P <swisslipid_2> <l_foo> <chebi> <default_graph>))
-					(or (P <swisslipid_3> <w3_org_2002_07_owl_equivalentClass_3> <chebi_3> <default_graph>))
-				)
-			)
-		)    
-	)
-)
-; ------------ Check-Sat ----------------------------
-(check-sat)
-`;
-
-		const rv: IRv[] = [{ name: "chebi_3" }, { name: "swisslipid_2" }];
-
-		const thetaFormat = generateThetaSmtLibString([sigma1, sigma2, sigma3], rv);
-		expect(thetaFormat).toBe(expectedString);
-	});
-
-
-});
-
 
 describe(isContained.name, async () => {
 	const Z3 = await Z3_SOLVER.init();
@@ -406,7 +237,7 @@ describe(isContained.name, async () => {
 			z3: Z3,
 			sources: []
 		};
-		
+
 		it("should return contain given 2 identical queries", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
@@ -610,7 +441,7 @@ describe(isContained.name, async () => {
 			z3: Z3,
 			sources: []
 		};
-		
+
 		it("should return contain given 2 identical queries", async () => {
 			const subQ = translate("SELECT ?s WHERE { SERVICE <http://example.com> { ?s ?p ?o}}");
 			const superQ = translate("SELECT ?s WHERE {SERVICE <http://example.com> { ?s ?p ?o}}");

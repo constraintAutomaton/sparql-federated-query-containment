@@ -22,6 +22,11 @@ import { type SafePromise, result, error, isError } from "result-interface";
 import { hasProjection, queryVariables } from "./query";
 import { type IOptions } from 'sparql-cache-client';
 
+interface ISolverError {
+  error: string;
+  smt?: string
+}
+
 export type Z3_FN = Z3_SOLVER.Z3HighLevel & Z3_SOLVER.Z3LowLevel;
 
 export interface ISolverOption extends IOptions {
@@ -46,7 +51,7 @@ export async function isContained(
   subQ: Algebra.Operation,
   superQ: Algebra.Operation,
   option: ISolverOption,
-): SafePromise<ISolverResponse, string> {
+): SafePromise<ISolverResponse, ISolverError> {
   // generate the variable of the specs formalism
   const subQRepresentation = generateQueryRepresentation(subQ);
   const superQRepresentation = generateQueryRepresentation(superQ);
@@ -64,7 +69,7 @@ export async function isContained(
       }
       return setSemanticContainment(subQRepresentation, superQRepresentation, option.z3);
     case SEMANTIC.BAG:
-      return error("not implemented");
+      return error({ error: "not implemented" });
   }
 }
 
@@ -72,7 +77,7 @@ async function bagSetSemanticContainment(
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
   z3: Z3_FN
-): SafePromise<ISolverResponse, string> {
+): SafePromise<ISolverResponse, ISolverError> {
   const subVariable = {
     variables: subQRepresentation.variables,
     relevantVariables: subQRepresentation.rv,
@@ -95,7 +100,7 @@ async function setSemanticContainment(
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
   z3: Z3_FN
-): SafePromise<ISolverResponse, string> {
+): SafePromise<ISolverResponse, ISolverError> {
   const tildeCheckIsValid = tildeCheck(
     subQRepresentation.rv,
     superQRepresentation.rv,
@@ -157,7 +162,7 @@ async function abstractContainment(
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
   z3: Z3_FN
-): SafePromise<ISolverResponse, string> {
+): SafePromise<ISolverResponse, ISolverError> {
   const { Z3 } = z3;
   if (
     !compatibleServiceClauses(
@@ -237,7 +242,7 @@ async function abstractContainment(
         nestedResponses: intermediaryResults,
       });
     }
-    return error(`Z3 returns ${response}`);
+    return error({ error: `Z3 returns ${response}`, smt: queryContainmentSmtLibString });
   }
 
   const thetaEvaluationSmtLibString = generateThetaSmtLibString(
@@ -255,7 +260,7 @@ async function abstractContainment(
   } else if (response.startsWith("sat")) {
     return result({ result: true, smtlib: thetaEvaluationSmtLibString });
   }
-  return error(`Z3 returns ${response}`);
+  return error({ error: `Z3 returns ${response}`, smt: thetaEvaluationSmtLibString });
 }
 
 export function compatibleServiceClauses(
@@ -277,12 +282,17 @@ function emptyQuery(representation: IQueryRepresentation): boolean {
   return representation.sigmas.length === 0;
 }
 
-export function generateQueryContainment(
+function generateQueryContainment(
   sub_sigmas: Sigma[],
   sub_rvs: IRv[],
   super_sigmas: Sigma[],
   super_rvs: IRv[],
 ): string {
+  const subSigmaVar = sub_sigmas.map((el) => el.variables).flat();
+  const superSigmaVar = super_sigmas.map((el) => el.variables).flat();
+
+  const superQueryUniqueVar = variableOnlySuperQuery(subSigmaVar, superSigmaVar);
+
   const {
     iri: subIriDeclarationString,
     literal: subLiteralDeclarationsString,
@@ -295,14 +305,18 @@ export function generateQueryContainment(
     literal: superLiteralDeclarationsString,
     variable: superVariableDeclarationsString,
     tp: superTriplePatternsAssertions,
-  } = generatePrelude(super_sigmas);
+  } = generatePrelude(super_sigmas, superQueryUniqueVar);
 
   const subTriplePatternsAssertionsString =
     subTriplePatternsAssertions.join("\n");
   const superTriplePatternsAssertionsString =
     superTriplePatternsAssertions.join("\n");
 
-  const [local_declaration, local_equality] = local_var_declaration(super_rvs);
+  const localVar = super_rvs;
+  for (const v of superQueryUniqueVar) {
+    localVar.push({ name: v });
+  }
+  const [local_declaration, local_equality] = local_var_declaration(localVar, superQueryUniqueVar);
 
   const conjecture = instantiateQueryContainmentConjecture(
     subTriplePatternsAssertionsString,
@@ -331,13 +345,13 @@ export function generateQueryContainment(
   return instance;
 }
 
-function generatePrelude(sigmas: Sigma[]): {
+function generatePrelude(sigmas: Sigma[], ignoreVariable?: Set<string>): {
   iri: string[];
   literal: string[];
   variable: string[];
   tp: string[];
 } {
-  
+
   let iriDeclarations: string[] = [];
   let literalDeclarations: string[] = [];
   let variableDeclarations: string[] = [];
@@ -345,15 +359,25 @@ function generatePrelude(sigmas: Sigma[]): {
   const triplePatternsAssertions: string[] = [];
 
   for (const sigma of sigmas) {
-    iriDeclarations = [...iriDeclarations, ...sigma.iriDeclarations];
+    iriDeclarations = [...iriDeclarations, ...sigma.iriDeclarations.map((el) => el.declaration)];
     literalDeclarations = [
       ...literalDeclarations,
-      ...sigma.literalDeclarations,
+      ...sigma.literalDeclarations.map((el) => el.declaration),
     ];
-    variableDeclarations = [
-      ...variableDeclarations,
-      ...sigma.variableDeclarations,
-    ];
+    if (ignoreVariable === undefined) {
+      variableDeclarations = [
+        ...variableDeclarations,
+        ...sigma.variableDeclarations.map((el) => el.declaration),
+      ];
+    } else {
+      for (const v of sigma.variableDeclarations) {
+        if (!ignoreVariable.has(v.term)) {
+          variableDeclarations.push(v.declaration);
+        }
+      }
+    }
+
+
     const triplePatternsStatementAssertion =
       instantiateTriplePatternStatementTemplate(
         sigma.subject,
@@ -369,6 +393,19 @@ function generatePrelude(sigmas: Sigma[]): {
     variable: variableDeclarations,
     tp: triplePatternsAssertions,
   };
+}
+
+function variableOnlySuperQuery(subQ: string[], superQ: string[]): Set<string> {
+  const setSubQVar = new Set(subQ);
+
+  const unique: Set<string> = new Set();
+
+  for (const el of superQ) {
+    if (!setSubQVar.has(el)) {
+      unique.add(el);
+    }
+  }
+  return unique;
 }
 
 export function generateThetaSmtLibString(sigmas: Sigma[], rvs: IRv[]): string {
@@ -606,6 +643,10 @@ class Rv implements IRv {
  */
 export type Sigma = ISigmaTerm;
 
+export interface IDeclaration {
+  declaration: string,
+  term: string
+}
 /**
  * A sigma function (definition 4.4 Term)
  */
@@ -614,9 +655,9 @@ export interface ISigmaTerm {
   predicate: string;
   object: string;
 
-  iriDeclarations: string[];
-  literalDeclarations: string[];
-  variableDeclarations: string[];
+  iriDeclarations: IDeclaration[];
+  literalDeclarations: IDeclaration[];
+  variableDeclarations: IDeclaration[];
 
   variables: string[];
 }
@@ -631,15 +672,15 @@ export class SigmaTerm implements ISigmaTerm {
 
   public readonly variables: string[];
 
-  public readonly iriDeclarations: string[];
-  public readonly literalDeclarations: string[];
-  public readonly variableDeclarations: string[];
+  public readonly iriDeclarations: IDeclaration[];
+  public readonly literalDeclarations: IDeclaration[];
+  public readonly variableDeclarations: IDeclaration[];
 
   public constructor(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term) {
     const smtLibDeclaration: {
-      iri: string[];
-      literal: string[];
-      variable: string[];
+      iri: IDeclaration[];
+      literal: IDeclaration[];
+      variable: IDeclaration[];
     } = {
       iri: [],
       literal: [],
@@ -707,17 +748,17 @@ export class SigmaTerm implements ISigmaTerm {
   private addATermToTheDeclaration(
     term: RDF.Term,
     constantName: string,
-    resp: { iri: string[]; literal: string[]; variable: string[] },
-  ) {
-    const constanceDeclaration =
+    resp: { iri: IDeclaration[]; literal: IDeclaration[]; variable: IDeclaration[] },
+  ): void {
+    const constanteDeclaration =
       SigmaTerm.generateDeclareSmtLibString(constantName);
 
     if (term.termType === "NamedNode") {
-      resp.iri.push(constanceDeclaration);
+      resp.iri.push({ declaration: constanteDeclaration, term: term.value });
     } else if (term.termType === "Literal") {
-      resp.literal.push(constanceDeclaration);
+      resp.literal.push({ declaration: constanteDeclaration, term: term.value });
     } else if (term.termType === "Variable" || term.termType === "BlankNode") {
-      resp.variable.push(constanceDeclaration);
+      resp.variable.push({ declaration: constanteDeclaration, term: term.value });
     }
   }
 }

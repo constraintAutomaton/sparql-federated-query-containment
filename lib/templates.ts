@@ -135,15 +135,17 @@ export function instantiateTriplePatternStatementTemplate(
   return `(or (P ${subject} ${predicate} ${object} <default_graph>))`;
 }
 
-export function local_var_declaration(rvs: IRv[]): [string, string] {
+export function local_var_declaration(rvs: IRv[], nonGlobalRv?: Set<string>): [string, string] {
   const declarations: string[] = [];
   const equalities: string[] = [];
 
   for (const rv of rvs) {
-    const declaration = `(<e_${rv.name}> RDFValue)`;
+    const declaration = !nonGlobalRv?.has(rv.name)?`(<e_${rv.name}> RDFValue)`:`(<${rv.name}> RDFValue)`;
     declarations.push(declaration);
-    const equality = `(= <e_${rv.name}> <${rv.name}>)`;
-    equalities.push(equality);
+    if (!nonGlobalRv?.has(rv.name)) {
+      const equality = `(= <e_${rv.name}> <${rv.name}>)`;
+      equalities.push(equality);
+    }
   }
   const declaration = declarations.join(" ");
   const equality = equalities.join("\n");

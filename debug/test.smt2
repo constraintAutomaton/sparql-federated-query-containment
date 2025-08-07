@@ -3,34 +3,45 @@
 (declare-fun P (RDFValue RDFValue RDFValue RDFValue) Bool)
 (declare-const <default_graph> RDFValue)
 
-; ------------ Variables ----------------------------
-(declare-const <sub_s> RDFValue)
-(declare-const <sub_p> RDFValue)
-(declare-const <sub_o> RDFValue)
+; ------------ IRIs ---------------------------------
+(declare-const <w3_org_1999_02_22_rdf_syntax_ns_type> RDFValue)
+(declare-const <example_org_GraduateStudent> RDFValue)
+(declare-const <example_org_Department> RDFValue)
+(declare-const <example_org_memberOf> RDFValue)
+(declare-const <example_org_subOrganizationOf> RDFValue)
+(declare-const <example_org_University1> RDFValue)
+(declare-const <example_org_email> RDFValue)
+; ------------ Literals -----------------------------
 
+; ------------ Variables ----------------------------
+(declare-const <x> RDFValue)
+(declare-const <y> RDFValue)
+(declare-const <z> RDFValue)
 ; ------------ Conjecture ---------------------------
-(assert 
-  (and
-    (P <sub_s> <sub_p> <sub_o> <default_graph>) 
-  )
+(assert
+	(and
+		(or (P <x> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_GraduateStudent> <default_graph>))
+		(or (P <y> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_Department> <default_graph>))
+		(or (P <x> <example_org_memberOf> <y> <default_graph>))
+		(or (P <y> <example_org_subOrganizationOf> <example_org_University1> <default_graph>))
+		(or (P <x> <example_org_email> <z> <default_graph>))
+	)
 )
 
 (assert 
-  (forall ((<e_sub_s> RDFValue) (<e_sub_p> RDFValue) (<e_sub_o> RDFValue) (<e_default_graph> RDFValue))  
-    (not 
-      (and 
-        (and
-          (P <e_sub_s> <e_sub_p> <e_sub_o> <e_default_graph>)
-        )
-        (and 
-          (= <e_sub_s> <sub_s>)
-          (= <e_sub_p> <sub_p>)
-          (= <e_sub_o> <sub_o>)
-          (= <e_default_graph> <default_graph>) 
-        ) 
-      )
-    )
-  )
+	(not 
+		(exists ((<e_x> RDFValue) (<e_z> RDFValue))
+			(and
+				(or (P <x> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_GraduateStudent> <default_graph>))
+				(or (P <y> <w3_org_1999_02_22_rdf_syntax_ns_type> <example_org_Department> <default_graph>))
+				(or (P <x> <example_org_memberOf> <y> <default_graph>))
+				(or (P <y> <example_org_subOrganizationOf> <u> <default_graph>))
+				(or (P <x> <example_org_email> <z> <default_graph>))
+				(= <e_x> <x>)
+				(= <e_z> <z>)
+			)
+		)
+	)
 )
 ; ------------ Check-Sat ----------------------------
 (check-sat)

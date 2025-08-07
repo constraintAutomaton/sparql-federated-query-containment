@@ -1,4 +1,4 @@
-import { describe, expect, it,test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { readFile } from 'fs/promises';
 import { Algebra, translate } from "sparqlalgebrajs";
 import * as Z3_SOLVER from "z3-solver";
@@ -16,39 +16,46 @@ describe("specs", async () => {
         sources: []
     };
 
-    const nopFiles = await getAllTestFiles("./tests/specs_test_cases/nop");
-    const pFiles = await getAllTestFiles("./tests/specs_test_cases/p");
 
-    test.each(nopFiles)('%s', async (file)=>{
-        const { subQ, superQ } = await parseQuery(file);
-        const expected = await expectedResponse(file);
-        const respOrErr = await isContained(subQ, superQ, option);
+    describe("nop test", async () => {
+        const nopFiles = await getAllTestFiles("./tests/specs_test_cases/nop");
 
-        expect(respOrErr).toEqual(
-            expect.objectContaining({
-                value: expect.objectContaining({
-                    result: expected
+        test.each(nopFiles)('test: %s', async (file) => {
+            const { subQ, superQ } = await parseQuery(file);
+            const expected = await expectedResponse(file);
+            const respOrErr = await isContained(subQ, superQ, option);
+
+            expect(respOrErr).toEqual(
+                expect.objectContaining({
+                    value: expect.objectContaining({
+                        result: expected
+                    })
                 })
-            })
-        );
+            );
+        });
+    })
+
+    describe("p test", async () => {
+        const pFiles = await getAllTestFiles("./tests/specs_test_cases/p");
+
+        test.each(pFiles)('p test: %s', async (file) => {
+            const { subQ, superQ } = await parseQuery(file);
+            const expected = await expectedResponse(file);
+            const respOrErr = await isContained(subQ, superQ, option);
+
+            expect(respOrErr).toEqual(
+                expect.objectContaining({
+                    value: expect.objectContaining({
+                        result: expected
+                    })
+                })
+            );
+        });
     });
 
-    test.each(pFiles)('%s', async (file)=>{
-        const { subQ, superQ } = await parseQuery(file);
-        const expected = await expectedResponse(file);
-        const respOrErr = await isContained(subQ, superQ, option);
-
-        expect(respOrErr).toEqual(
-            expect.objectContaining({
-                value: expect.objectContaining({
-                    result: expected
-                })
-            })
-        );
-    });
 });
 
-async function getAllTestFiles(dir:string): Promise<string[]> {
+async function getAllTestFiles(dir: string): Promise<string[]> {
 
     const entries = await readdir(dir);
     const result: string[] = [];
