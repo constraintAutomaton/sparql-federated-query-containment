@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { generateOvRv, generateThetaSmtLibString, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC, ISolverOption, tildeCheckBagSet } from '../lib/specs';
+import { generateOvRv, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC, ISolverOption, tildeCheckBagSet, tildeCheckBag } from '../lib/specs';
 import { translate } from "sparqlalgebrajs";
-import { instantiateTemplate } from '../lib/templates';
 import { isError, result } from 'result-interface';
 import * as Z3_SOLVER from "z3-solver";
 
@@ -131,11 +130,11 @@ describe(generateSigmas.name, () => {
 					predicate: "<purl_uniprot_org_core_annotation>",
 					object: "<catalyticActivityAnnotation>",
 
-					iriDeclarations: [{term: "http://purl.uniprot.org/core/annotation", declaration: SigmaTerm.generateDeclareSmtLibString("<purl_uniprot_org_core_annotation>")}],
+					iriDeclarations: [{ term: "http://purl.uniprot.org/core/annotation", declaration: SigmaTerm.generateDeclareSmtLibString("<purl_uniprot_org_core_annotation>") }],
 					literalDeclarations: [],
 					variableDeclarations: [
-						{term: "protein", declaration: SigmaTerm.generateDeclareSmtLibString("<protein>")},
-						{ term: "catalyticActivityAnnotation", declaration:SigmaTerm.generateDeclareSmtLibString("<catalyticActivityAnnotation>")}
+						{ term: "protein", declaration: SigmaTerm.generateDeclareSmtLibString("<protein>") },
+						{ term: "catalyticActivityAnnotation", declaration: SigmaTerm.generateDeclareSmtLibString("<catalyticActivityAnnotation>") }
 					],
 					variables: ["protein", "catalyticActivityAnnotation"]
 				}
@@ -227,6 +226,616 @@ describe(tildeCheck.name, () => {
 	});
 });
 
+describe(tildeCheckBagSet.name, () => {
+	it("should return false if not the same number of variables is provided", () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv
+		};
+
+		expect(tildeCheckBagSet(subQ, superQ)).toBe(false);
+	});
+
+	it("should return false if not the same variables are provided", () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi2" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea2" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv
+		};
+
+		expect(tildeCheckBagSet(subQ, superQ)).toBe(false);
+	});
+
+	it(`should return false given that ${tildeCheck.name} passed and the super query variables is not a super set of the sub query variables`, () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo"]),
+			relevantVariables: superRv
+		};
+
+		expect(tildeCheckBagSet(subQ, superQ)).toBe(false);
+	});
+
+	it(`should return true given that ${tildeCheck.name} passed and the super query variables is a super set of the sub query variables`, () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv
+		};
+
+		expect(tildeCheckBagSet(subQ, superQ)).toBe(true);
+	});
+});
+
+describe(tildeCheckBag.name, () => {
+
+	it("should return false if not the same number of variables is provided", () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		};
+
+		expect(tildeCheckBag(subQ, superQ)).toBe(false);
+	});
+
+	it("should return false if not the same variables are provided", () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi2" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea2" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		};
+
+		expect(tildeCheckBag(subQ, superQ)).toBe(false);
+	});
+
+	it(`should return false given that ${tildeCheck.name} passed and the super query variables is not a super set of the sub query variables`, () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo"]),
+			relevantVariables: superRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		};
+
+		expect(tildeCheckBag(subQ, superQ)).toBe(false);
+	});
+
+	it(`should return false given that ${tildeCheckBagSet.name} passed and the number of sigmas in the super query is lower than the sub query`, () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+			]
+		};
+
+		expect(tildeCheckBag(subQ, superQ)).toBe(false);
+	});
+
+	it(`should return true given that ${tildeCheckBagSet.name} passed and the number of sigmas are equals`, () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		};
+
+		expect(tildeCheckBag(subQ, superQ)).toBe(true);
+	});
+
+	it(`should return true given that ${tildeCheckBagSet.name} passed and the number of sigma of the super query is greater`, () => {
+		const subRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const subQ = {
+			variables: new Set([...subRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: subRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		}
+
+		const superRv: IRv[] = [
+			{ name: "swisslipid" },
+			{ name: "organism" },
+			{ name: "chebi" },
+			{ name: "catalyticActivityAnnotation" },
+			{ name: "rhea" },
+			{ name: "protein" }
+		];
+
+		const superQ = {
+			variables: new Set([...superRv.map((el) => el.name), "foo", "bar"]),
+			relevantVariables: superRv,
+			sigmas: [
+				{
+					subject: "a",
+					predicate: "b",
+					object: "c",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "d",
+					predicate: "e",
+					object: "f",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				},
+				{
+					subject: "g",
+					predicate: "h",
+					object: "i",
+
+					iriDeclarations: [],
+					literalDeclarations: [],
+					variableDeclarations: [],
+
+					variables: []
+				}
+			]
+		};
+
+		expect(tildeCheckBag(subQ, superQ)).toBe(true);
+	});
+});
 
 describe(isContained.name, async () => {
 	const Z3 = await Z3_SOLVER.init();
@@ -515,6 +1124,43 @@ describe(isContained.name, async () => {
 					}
 				}
 			}));
+		});
+	});
+
+	describe("bag semantic", ()=>{
+
+		const option: ISolverOption = {
+			semantic: SEMANTIC.BAG,
+			z3: Z3,
+			sources: []
+		};
+
+		it("should return contain given 2 identical queries", async () => {
+			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
+			const superQ = translate("SELECT ?s WHERE {?s ?p ?o}");
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(isError(resp)).toBe(false);
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+		});
+
+		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
+			const subQ = translate("SELECT ?s WHERE {?s ?p ?o}");
+			const superQ = translate("SELECT ?o WHERE {?s ?p ?o}");
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
+		});
+
+		it("should return false two queries not contained with set semantic", async () => {
+			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s1 ?p2 ?o2. ?s3 ?p3 ?o3.}");
+			const superQ = translate("SELECT ?s WHERE {?s ?p <http://example.com#1>. ?s1 ?p2 ?o2.}");
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
 	});
 });
