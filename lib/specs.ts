@@ -69,8 +69,31 @@ export async function isContained(
       }
       return setSemanticContainment(subQRepresentation, superQRepresentation, option.z3);
     case SEMANTIC.BAG:
-      return error({ error: "not implemented" });
+      return bagSemanticContainment(subQRepresentation, superQRepresentation, option.z3);
   }
+}
+
+async function bagSemanticContainment(subQRepresentation: IQueryRepresentation,
+  superQRepresentation: IQueryRepresentation,
+  z3: Z3_FN): SafePromise<ISolverResponse, ISolverError> {
+  const subQuery = {
+    variables: subQRepresentation.variables,
+    relevantVariables: subQRepresentation.rv,
+    sigmas: subQRepresentation.sigmas
+  };
+  const superQuery = {
+    variables: superQRepresentation.variables,
+    relevantVariables: superQRepresentation.rv,
+    sigmas: superQRepresentation.sigmas
+  };
+
+  const tildeCheckIsValid = tildeCheckBag(subQuery, superQuery);
+  return abstractContainment(
+    tildeCheckIsValid,
+    subQRepresentation,
+    superQRepresentation,
+    z3
+  );
 }
 
 async function bagSetSemanticContainment(
@@ -467,6 +490,15 @@ export function tildeCheckBagSet(
     return false;
   }
   return superVariables.variables.isSupersetOf(subVariables.variables);
+}
+
+export function tildeCheckBag(subQuery: { variables: Set<string>; relevantVariables: IRv[]; sigmas: Sigma[] },
+  superQuery: { variables: Set<string>; relevantVariables: IRv[]; sigmas: Sigma[] }): boolean {
+  const resp = tildeCheckBagSet(subQuery, superQuery);
+  if (!resp) {
+    return false;
+  }
+  return superQuery.sigmas.length >= subQuery.sigmas.length;
 }
 
 function generateQueryRepresentation(
