@@ -2,7 +2,7 @@
   "name": "sparql-federated-query-containment",
   "module": "./dist/esm/index.js",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "homepage": "https://github.com/constraintAutomaton/sparql-federated-query-containment",
   "license": "MIT",
   "author": {
