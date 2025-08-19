@@ -18,7 +18,7 @@ import {
   instantiateQueryContainmentConjecture,
 } from "./templates";
 import * as Z3_SOLVER from "z3-solver";
-import { type SafePromise, result, error, isError } from "result-interface";
+import { type SafePromise, result, error, isError, isResult } from "result-interface";
 import { hasProjection, queryVariables } from "./query";
 import { type IOptions } from 'sparql-cache-client';
 
@@ -39,6 +39,7 @@ export interface ISolverResponse {
   smtlib?: string;
   justification?: string;
   nestedResponses?: Record<string, ISolverResponse>;
+  unionResponses?: ISolverResponse[];
 }
 
 export enum SEMANTIC {
@@ -206,6 +207,7 @@ async function abstractContainment(
   );
 
   const intermediaryResults: Record<string, ISolverResponse> = {};
+
   for (const { subQ, superQ, url } of serviceAssoc) {
     const res = await setSemanticContainment(subQ, superQ, z3);
     if (isError(res)) {
@@ -240,6 +242,15 @@ async function abstractContainment(
   }
 
   if (compatibilityCheck) {
+    const unionResponses: ISolverResponse[] | undefined;
+
+    for (const sub_branch of subQRepresentation.union?.branches ?? []) {
+      let validBranch: boolean = false;
+      for (const super_branch of superQRepresentation.union?.branches ?? []) {
+        const resp = await abstractContainment(compatibilityCheck, sub_branch, super_branch, z3);
+
+      }
+    }
     const queryContainmentSmtLibString = generateQueryContainment(
       subQRepresentation.sigmas,
       subQRepresentation.rv,
@@ -257,12 +268,14 @@ async function abstractContainment(
         result: true,
         smtlib: queryContainmentSmtLibString,
         nestedResponses: intermediaryResults,
+        unionResponses:unionResponses
       });
     } else if (response.startsWith("sat")) {
       return result({
         result: false,
         smtlib: queryContainmentSmtLibString,
         nestedResponses: intermediaryResults,
+        unionResponses:unionResponses
       });
     }
     return error({ error: `Z3 returns ${response}`, smt: queryContainmentSmtLibString });
@@ -514,7 +527,20 @@ function generateQueryRepresentation(
     variables,
     ...ovRv,
     service,
+    union: generateUnion(query)
   };
+}
+
+function generateUnion(query: Algebra.Operation): IUnion | undefined {
+  let union: IUnion | undefined;
+  Util.recurseOperation(query, {
+    [Algebra.types.SERVICE]: () => false,
+    [Algebra.types.UNION]: (op: Algebra.Union) => {
+      union = new Union(op);
+      return false;
+    }
+  });
+  return union;
 }
 
 function generateService(query: Algebra.Operation): IService[] {
@@ -525,6 +551,7 @@ function generateService(query: Algebra.Operation): IService[] {
       serviceOperations.push(service);
       return true;
     },
+    [Algebra.types.UNION]: () => false
   });
 
   return serviceOperations;
@@ -537,9 +564,7 @@ function generateService(query: Algebra.Operation): IService[] {
 export function generateSigmas(query: Algebra.Operation): Sigma[] {
   const result: Sigma[] = [];
   Util.recurseOperation(query, {
-    [Algebra.types.SERVICE]: () => {
-      return false;
-    },
+    [Algebra.types.SERVICE]: () => false,
     [Algebra.types.PATTERN]: (op: Algebra.Pattern) => {
       const sigma: ISigmaTerm = new SigmaTerm(
         op.subject,
@@ -549,6 +574,7 @@ export function generateSigmas(query: Algebra.Operation): Sigma[] {
       result.push(sigma);
       return false;
     },
+    [Algebra.types.UNION]: () => false
   });
   return result;
 }
@@ -636,6 +662,20 @@ class Ov implements IOv {
 
   public constructor(name: string) {
     this.name = name;
+  }
+}
+export interface IUnion {
+  branches: IQueryRepresentation[]
+}
+
+export class Union implements IUnion {
+  public readonly branches: IQueryRepresentation[] = [];
+
+  public constructor(union: Algebra.Union) {
+    for (const branch of union.input) {
+      const branchRepresentation = generateQueryRepresentation(branch);
+      this.branches.push(branchRepresentation);
+    }
   }
 }
 
@@ -801,6 +841,7 @@ interface IQueryRepresentation {
   ov: Ov[];
   rv: Rv[];
   service: IService[];
+  union?: IUnion
 }
 
 interface IServiceQueryAssoc {
