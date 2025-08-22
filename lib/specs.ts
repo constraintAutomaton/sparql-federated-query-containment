@@ -18,7 +18,7 @@ import {
   instantiateQueryContainmentConjecture,
 } from "./templates";
 import * as Z3_SOLVER from "z3-solver";
-import { type SafePromise, result, error, isError, isResult } from "result-interface";
+import { type SafePromise, result, error, isError } from "result-interface";
 import { hasProjection, queryVariables } from "./query";
 import { type IOptions } from 'sparql-cache-client';
 
@@ -34,12 +34,17 @@ export interface ISolverOption extends IOptions {
   z3: Z3_FN
 }
 
+export interface IUnionResponses {
+  valid: ISolverResponse[];
+  invalid: ISolverResponse[];
+}
+
 export interface ISolverResponse {
   result: boolean;
   smtlib?: string;
   justification?: string;
   nestedResponses?: Record<string, ISolverResponse>;
-  unionResponses?: ISolverResponse[];
+  unionResponses?: IUnionResponses;
 }
 
 export enum SEMANTIC {
@@ -123,9 +128,10 @@ async function bagSetSemanticContainment(
 async function setSemanticContainment(
   subQRepresentation: IQueryRepresentation,
   superQRepresentation: IQueryRepresentation,
-  z3: Z3_FN
+  z3: Z3_FN,
+  ignoreTilde?: boolean
 ): SafePromise<ISolverResponse, ISolverError> {
-  const tildeCheckIsValid = tildeCheck(
+  const tildeCheckIsValid = ignoreTilde === true ? true : tildeCheck(
     subQRepresentation.rv,
     superQRepresentation.rv,
   );
@@ -209,7 +215,7 @@ async function abstractContainment(
   const intermediaryResults: Record<string, ISolverResponse> = {};
 
   for (const { subQ, superQ, url } of serviceAssoc) {
-    const res = await setSemanticContainment(subQ, superQ, z3);
+    const res = await setSemanticContainment(subQ, superQ, z3, true);
     if (isError(res)) {
       return res;
     }
@@ -242,13 +248,34 @@ async function abstractContainment(
   }
 
   if (compatibilityCheck) {
-    const unionResponses: ISolverResponse[] | undefined;
+    const unionResponses: IUnionResponses = {
+      valid: [],
+      invalid: []
+    };
 
     for (const sub_branch of subQRepresentation.union?.branches ?? []) {
       let validBranch: boolean = false;
-      for (const super_branch of superQRepresentation.union?.branches ?? []) {
-        const resp = await abstractContainment(compatibilityCheck, sub_branch, super_branch, z3);
-
+      const superBranches = superQRepresentation.union?.branches ?? [];
+      for (const super_branch of [...superBranches, superQRepresentation]) {
+        const res = await setSemanticContainment(sub_branch, super_branch, z3, true);
+        if (isError(res)) {
+          return res;
+        }
+        if (res.value.result === false) {
+          unionResponses.invalid.push(res.value);
+        } else {
+          validBranch = true;
+          unionResponses.valid.push(res.value);
+          break;
+        }
+      }
+      if (!validBranch) {
+        return result({
+          result: false,
+          nestedResponses: intermediaryResults,
+          unionResponses: unionResponses,
+          justification: "not every union branch was contained"
+        });
       }
     }
     const queryContainmentSmtLibString = generateQueryContainment(
@@ -268,14 +295,14 @@ async function abstractContainment(
         result: true,
         smtlib: queryContainmentSmtLibString,
         nestedResponses: intermediaryResults,
-        unionResponses:unionResponses
+        unionResponses: unionResponses
       });
     } else if (response.startsWith("sat")) {
       return result({
         result: false,
         smtlib: queryContainmentSmtLibString,
         nestedResponses: intermediaryResults,
-        unionResponses:unionResponses
+        unionResponses: unionResponses
       });
     }
     return error({ error: `Z3 returns ${response}`, smt: queryContainmentSmtLibString });
@@ -348,9 +375,17 @@ function generateQueryContainment(
   const superTriplePatternsAssertionsString =
     superTriplePatternsAssertions.join("\n");
 
-  const localVar = super_rvs;
+  const superSigmaVariables = new Set(super_sigmas.map((sigma) => sigma.variables).flat())
+
+  const localVar = [];
+  for(const v of super_rvs){
+    if (superSigmaVariables.has(v.name)) {
+      localVar.push(v);
+    }
+  }
+  
   for (const v of superQueryUniqueVar) {
-    localVar.push({ name: v });
+      localVar.push({ name: v });
   }
   const [local_declaration, local_equality] = local_var_declaration(localVar, superQueryUniqueVar);
 
@@ -521,13 +556,14 @@ function generateQueryRepresentation(
   const ovRv = generateOvRv(query);
   const variables = queryVariables(query);
   const service = generateService(query);
+  const union = generateUnion(query);
 
   return {
     sigmas,
     variables,
     ...ovRv,
     service,
-    union: generateUnion(query)
+    union,
   };
 }
 
@@ -674,6 +710,10 @@ export class Union implements IUnion {
   public constructor(union: Algebra.Union) {
     for (const branch of union.input) {
       const branchRepresentation = generateQueryRepresentation(branch);
+      branchRepresentation.rv = Array.from(branchRepresentation.variables).map((el) => {
+        return { name: el };
+      });
+
       this.branches.push(branchRepresentation);
     }
   }

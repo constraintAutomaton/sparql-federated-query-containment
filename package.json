@@ -34,19 +34,19 @@
     "README.md"
   ],
   "devDependencies": {
-    "@types/bun": "latest",
-    "ts-node": "^10.9.2",
-    "ts-node-esm": "^0.0.6",
-    "tsx": "^4.20.2",
-    "typescript": "^5.8.3",
-    "vitest": "^3.1.4",
+    "@rdfjs/types": "^2.0.1",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
     "prettier": "^3.6.2",
-    "@rdfjs/types": "^2.0.1"
+    "ts-node": "^10.9.2",
+    "ts-node-esm": "^0.0.6",
+    "tsx": "^4.20.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.1.3",
+    "vitest": "^3.1.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

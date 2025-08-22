@@ -854,7 +854,7 @@ describe(isContained.name, async () => {
 			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
@@ -872,7 +872,7 @@ describe(isContained.name, async () => {
 
 			const resp = await isContained(subQ, superQ, option);
 
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return true given queries with multiple triple patterns", async () => {
@@ -881,7 +881,7 @@ describe(isContained.name, async () => {
 
 			const resp = await isContained(subQ, superQ, option);
 
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return false given queries with multiple triple patterns", async () => {
@@ -890,7 +890,7 @@ describe(isContained.name, async () => {
 
 			const resp = await isContained(subQ, superQ, option);
 
-			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return false given queries with multiple non identical projections", async () => {
@@ -920,7 +920,7 @@ describe(isContained.name, async () => {
 
 			const resp = await isContained(subQ, superQ, option);
 
-			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it('should return false given an example contained query', async () => {
@@ -944,7 +944,7 @@ describe(isContained.name, async () => {
 
 			const resp = await isContained(subQ, superQ, option);
 
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 	});
 
@@ -962,7 +962,7 @@ describe(isContained.name, async () => {
 			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return contain given a contained query", async () => {
@@ -972,7 +972,7 @@ describe(isContained.name, async () => {
 			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
@@ -1064,9 +1064,10 @@ describe(isContained.name, async () => {
 					"http://example.com": {
 						result: true,
 						smtlib: expect.any(String),
-						nestedResponses: {}
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
 					}
-				}
+				},
 			}));
 		});
 
@@ -1082,7 +1083,8 @@ describe(isContained.name, async () => {
 					"http://example.com": {
 						result: true,
 						smtlib: expect.any(String),
-						nestedResponses: {}
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
 					}
 				}
 			}));
@@ -1100,7 +1102,8 @@ describe(isContained.name, async () => {
 					"http://example.com": {
 						result: true,
 						smtlib: expect.any(String),
-						nestedResponses: {}
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
 					}
 				}
 			}));
@@ -1120,14 +1123,72 @@ describe(isContained.name, async () => {
 					"http://example.com": {
 						result: true,
 						smtlib: expect.any(String),
-						nestedResponses: {}
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
 					}
-				}
+				},
+				unionResponses: expect.any(Object)
 			}));
+		});
+
+		it("should return contain with an example query", async () => {
+			const subQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					#VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+					?taxid <http://purl.uniprot.org/core/strain> <http://purl.uniprot.org/taxonomy/10090#strain-752F89669B9A8D5A40A7219990C3010B>.
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}
+		`);
+			const superQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					#VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}`);
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(isError(resp)).toBe(false);
+			
+			expect(resp).toStrictEqual(result({
+				result: true,
+				smtlib: expect.any(String),
+				unionResponses: expect.any(Object),
+				nestedResponses: {
+					"https://sparql.uniprot.org/sparql": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
+					}
+				},
+			}));
+			
 		});
 	});
 
-	describe("bag semantic", ()=>{
+	describe("bag semantic", () => {
 
 		const option: ISolverOption = {
 			semantic: SEMANTIC.BAG,
@@ -1142,7 +1203,7 @@ describe(isContained.name, async () => {
 			const resp = await isContained(subQ, superQ, option);
 
 			expect(isError(resp)).toBe(false);
-			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {}, unionResponses: expect.any(Object) }));
 		});
 
 		it("should return false a given without the same relevant variable that can be answer by a knowledge graph", async () => {
@@ -1162,5 +1223,42 @@ describe(isContained.name, async () => {
 
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
+	});
+
+	describe("union", () => {
+		describe("set semantic", () => {
+			const option: ISolverOption = {
+				semantic: SEMANTIC.SET,
+				z3: Z3,
+				sources: []
+			};
+
+			it('should return true given a query with one union in the sub query', async () => {
+				const subQ = translate(`
+			PREFIX ex: <http://example.org/>
+
+			SELECT ?s ?age WHERE {
+			?s ex:age ?age .
+			{
+				?s ex:job ?job ;
+			} UNION {
+				?s ex:job ?email ;
+			}
+			}`);
+
+				const superQ = translate(`
+			PREFIX ex: <http://example.org/>
+
+			SELECT ?s ?age WHERE  {
+			?s ex:job ?job ;
+				ex:age ?age .				
+			}`);
+
+				const resp = await isContained(subQ, superQ, option);
+
+				expect(resp).toStrictEqual(result({ result: true, smtlib: expect.any(String), nestedResponses: {} }));
+			});
+		});
+
 	});
 });
