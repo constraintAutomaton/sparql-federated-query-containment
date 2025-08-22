@@ -556,14 +556,14 @@ function generateQueryRepresentation(
   const ovRv = generateOvRv(query);
   const variables = queryVariables(query);
   const service = generateService(query);
-  const union = generateUnion(query);
+  //const union = generateUnion(query);
 
   return {
     sigmas,
     variables,
     ...ovRv,
     service,
-    union,
+    //union,
   };
 }
 

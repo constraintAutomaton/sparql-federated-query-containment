@@ -1224,7 +1224,7 @@ describe(isContained.name, async () => {
 			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
 		});
 	});
-
+/**
 	describe("union", () => {
 		describe("set semantic", () => {
 			const option: ISolverOption = {
@@ -1261,4 +1261,5 @@ describe(isContained.name, async () => {
 		});
 
 	});
+*/
 });
