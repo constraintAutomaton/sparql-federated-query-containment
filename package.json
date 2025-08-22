@@ -55,7 +55,7 @@
     "rdf-data-factory": "^2.0.2",
     "rdf-isomorphic": "^2.0.1",
     "result-interface": "^2.3.3",
-    "sparql-cache-client": "^0.1.4",
+    "sparql-cache-client": "^0.2.3",
     "sparqlalgebrajs": "^5.0.0",
     "z3-solver": "^4.15.2"
   },

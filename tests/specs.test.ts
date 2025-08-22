@@ -1186,6 +1186,61 @@ describe(isContained.name, async () => {
 			}));
 			
 		});
+
+		it("should return not contain with an example query where the queries are reversed", async () => {
+			const subQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					#VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+					?taxid <http://purl.uniprot.org/core/strain> <http://purl.uniprot.org/taxonomy/10090#strain-752F89669B9A8D5A40A7219990C3010B>.
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}
+		`);
+			const superQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					#VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}`);
+
+			const resp = await isContained(superQ, subQ, option);
+
+			expect(isError(resp)).toBe(false);
+			
+			expect(resp).toStrictEqual(result({
+				result: false,
+				justification:expect.any(String),
+				nestedResponses: {
+					"https://sparql.uniprot.org/sparql": {
+						result: false,
+						smtlib: expect.any(String),
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
+					}
+				},
+			}));
+			
+		});
 	});
 
 	describe("bag semantic", () => {

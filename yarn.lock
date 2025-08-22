@@ -3898,15 +3898,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"p-limit@npm:^6.2.0":
-  version: 6.2.0
-  resolution: "p-limit@npm:6.2.0"
-  dependencies:
-    yocto-queue: "npm:^1.1.1"
-  checksum: 10c0/448bf55a1776ca1444594d53b3c731e68cdca00d44a6c8df06a2f6e506d5bbd540ebb57b05280f8c8bff992a630ed782a69612473f769a7473495d19e2270166
-  languageName: node
-  linkType: hard
-
 "p-locate@npm:^5.0.0":
   version: 5.0.0
   resolution: "p-locate@npm:5.0.0"
@@ -4818,13 +4809,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sparql-cache-client@npm:^0.1.4":
-  version: 0.1.5
-  resolution: "sparql-cache-client@npm:0.1.5"
+"sparql-cache-client@npm:^0.2.3":
+  version: 0.2.3
+  resolution: "sparql-cache-client@npm:0.2.3"
   dependencies:
     "@rdfjs/types": "npm:^2.0.1"
     "@types/streamify-string": "npm:^1.0.4"
-    p-limit: "npm:^6.2.0"
     rdf-data-factory: "npm:^2.0.2"
     rdf-dereference: "npm:^4.0.0"
     result-interface: "npm:^2.3.3"
@@ -4832,7 +4822,7 @@ __metadata:
     sparqljson-parse: "npm:^3.0.0"
   peerDependencies:
     typescript: ^5.0.0
-  checksum: 10c0/f6787436c1eb301c0bc7c5d3b12194bdc10b74acba2bdf023c05b78cd73bc22a0f271d774eeffd516a39a895cf723073a7ad7b6a4d884e5ef7c841e8d66d5a45
+  checksum: 10c0/21313a953d2b126901d43358ecdd2b877ccf397bb770b6f8be0ed16ea3068361cabe4d8662bd7798030a1348f1db24ee05db8cc63756087857613732d7366b90
   languageName: node
   linkType: hard
 
@@ -4850,7 +4840,7 @@ __metadata:
     rdf-data-factory: "npm:^2.0.2"
     rdf-isomorphic: "npm:^2.0.1"
     result-interface: "npm:^2.3.3"
-    sparql-cache-client: "npm:^0.1.4"
+    sparql-cache-client: "npm:^0.2.3"
     sparqlalgebrajs: "npm:^5.0.0"
     ts-node: "npm:^10.9.2"
     ts-node-esm: "npm:^0.0.6"
@@ -5689,13 +5679,6 @@ __metadata:
   version: 0.1.0
   resolution: "yocto-queue@npm:0.1.0"
   checksum: 10c0/dceb44c28578b31641e13695d200d34ec4ab3966a5729814d5445b194933c096b7ced71494ce53a0e8820685d1d010df8b2422e5bf2cdea7e469d97ffbea306f
-  languageName: node
-  linkType: hard
-
-"yocto-queue@npm:^1.1.1":
-  version: 1.2.1
-  resolution: "yocto-queue@npm:1.2.1"
-  checksum: 10c0/5762caa3d0b421f4bdb7a1926b2ae2189fc6e4a14469258f183600028eb16db3e9e0306f46e8ebf5a52ff4b81a881f22637afefbef5399d6ad440824e9b27f9f
   languageName: node
   linkType: hard
 

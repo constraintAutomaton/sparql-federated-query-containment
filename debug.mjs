@@ -13,7 +13,6 @@ WHERE {
   SERVICE <https://sparql.uniprot.org/sparql> {
       #VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
       ?uniprot up:reviewed true .
-      ?uniprot up:mnemonic ?mnemo .
       ?uniprot up:organism ?taxid .
       ?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
   }

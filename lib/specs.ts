@@ -187,6 +187,23 @@ function relevantVariableService(
   });
 }
 
+function compatibleValueClause(subValues: IValues, superValues: IValues): boolean {
+  if (Object.keys(subValues).length < Object.keys(superValues).length) {
+    return false;
+  }
+  for (const [key, values] of Object.entries(subValues)) {
+    if (superValues[key] === undefined) {
+      return false;
+    }
+    for (const v of values) {
+      if (!superValues[key].has(v)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 async function abstractContainment(
   compatibilityCheck: boolean,
   subQRepresentation: IQueryRepresentation,
@@ -194,6 +211,7 @@ async function abstractContainment(
   z3: Z3_FN
 ): SafePromise<ISolverResponse, ISolverError> {
   const { Z3 } = z3;
+
   if (
     !compatibleServiceClauses(
       subQRepresentation.service,
@@ -204,6 +222,14 @@ async function abstractContainment(
       result: false,
       justification:
         "queries does not have the same URL for the service clauses",
+    });
+  }
+
+  if(compatibleValueClause(subQRepresentation.values, superQRepresentation.values)){
+    return result({
+      result: false,
+      justification:
+        "Queries does not have compatible VALUE clauses",
     });
   }
 
@@ -224,7 +250,7 @@ async function abstractContainment(
       return result({
         result: false,
         justification: `service at url ${url} is not contained`,
-        serviceSmtlib: intermediaryResults,
+        nestedResponses: intermediaryResults,
       });
     }
     intermediaryResults[url] = res.value;
@@ -378,14 +404,14 @@ function generateQueryContainment(
   const superSigmaVariables = new Set(super_sigmas.map((sigma) => sigma.variables).flat())
 
   const localVar = [];
-  for(const v of super_rvs){
+  for (const v of super_rvs) {
     if (superSigmaVariables.has(v.name)) {
       localVar.push(v);
     }
   }
-  
+
   for (const v of superQueryUniqueVar) {
-      localVar.push({ name: v });
+    localVar.push({ name: v });
   }
   const [local_declaration, local_equality] = local_var_declaration(localVar, superQueryUniqueVar);
 
@@ -557,13 +583,14 @@ function generateQueryRepresentation(
   const variables = queryVariables(query);
   const service = generateService(query);
   //const union = generateUnion(query);
-
+  const values = generateValues(query);
   return {
     sigmas,
     variables,
     ...ovRv,
     service,
     //union,
+    values
   };
 }
 
@@ -613,6 +640,27 @@ export function generateSigmas(query: Algebra.Operation): Sigma[] {
     [Algebra.types.UNION]: () => false
   });
   return result;
+}
+export function generateValues(query: Algebra.Operation): IValues {
+  const resp: IValues = {};
+
+  Util.recurseOperation(query, {
+    [Algebra.types.SERVICE]: () => false,
+    [Algebra.types.VALUES]: (op: Algebra.Values) => {
+      for (const binding of op.bindings) {
+        for (const [key, val] of Object.entries(binding)) {
+          if (resp[key] === undefined) {
+            resp[key] = new Set([val.value]);
+          } else {
+            resp[key].add(val.value);
+          }
+        }
+      }
+      return false;
+    },
+    [Algebra.types.UNION]: () => false
+  });
+  return resp;
 }
 
 /**
@@ -882,10 +930,15 @@ interface IQueryRepresentation {
   rv: Rv[];
   service: IService[];
   union?: IUnion
+  values: IValues;
 }
 
 interface IServiceQueryAssoc {
   subQ: IQueryRepresentation;
   superQ: IQueryRepresentation;
   url: string;
+}
+
+interface IValues {
+  [key: string]: Set<string>;
 }
