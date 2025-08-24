@@ -187,7 +187,10 @@ function relevantVariableService(
   });
 }
 
-function compatibleValueClause(subValues: IValues, superValues: IValues): boolean {
+export function compatibleValueClause(subValues: IValues, superValues: IValues): boolean {
+  if(Object.keys(superValues).length === 0){
+    return true;
+  }
   if (Object.keys(subValues).length < Object.keys(superValues).length) {
     return false;
   }
@@ -225,7 +228,7 @@ async function abstractContainment(
     });
   }
 
-  if(compatibleValueClause(subQRepresentation.values, superQRepresentation.values)){
+  if(!compatibleValueClause(subQRepresentation.values, superQRepresentation.values)){
     return result({
       result: false,
       justification:

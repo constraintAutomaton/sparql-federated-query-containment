@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateOvRv, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC, ISolverOption, tildeCheckBagSet, tildeCheckBag } from '../lib/specs';
+import { generateOvRv, generateSigmas, isContained, renameIriforSmt, SigmaTerm, tildeCheck, type IOv, type IRv, type Sigma, SEMANTIC, ISolverOption, tildeCheckBagSet, tildeCheckBag, compatibleValueClause } from '../lib/specs';
 import { translate } from "sparqlalgebrajs";
 import { isError, result } from 'result-interface';
 import * as Z3_SOLVER from "z3-solver";
@@ -837,6 +837,80 @@ describe(tildeCheckBag.name, () => {
 	});
 });
 
+describe(compatibleValueClause.name, ()=>{
+	it("should returns true if the super query have no values clause and the sub query has", ()=>{
+		const subValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+		const superValue = {};
+
+		const resp = compatibleValueClause(subValue, superValue);
+
+		expect(resp).toBe(true);
+	});
+
+	it("should return false if the super query have less value constraint than the sub query", ()=>{
+		const subValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+		const superValue = {
+			"foo": new Set(["bar", "too"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+
+		const resp = compatibleValueClause(subValue, superValue);
+
+		expect(resp).toBe(false);
+	});
+
+	it("should return false if the super query have less value binding values than the sub query", ()=>{
+		const subValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+		const superValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+		};
+
+		const resp = compatibleValueClause(subValue, superValue);
+
+		expect(resp).toBe(false);
+	});
+
+	it("should return true if the super query have the same values than the sub query", ()=>{
+		const subValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+		const superValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+
+		const resp = compatibleValueClause(subValue, superValue);
+
+		expect(resp).toBe(true);
+	});
+
+	it("should return true if the sub query have less value than the super query", ()=>{
+		const subValue = {
+			"foo": new Set(["boo"]),
+			"foo1": new Set(["bar1", "boo1"])
+		};
+		const superValue = {
+			"foo": new Set(["bar", "too", "boo"]),
+			"foo1": new Set(["bar1", "too1", "boo1"])
+		};
+
+		const resp = compatibleValueClause(subValue, superValue);
+
+		expect(resp).toBe(true);
+	});
+
+});
+
 describe(isContained.name, async () => {
 	const Z3 = await Z3_SOLVER.init();
 
@@ -1273,6 +1347,214 @@ describe(isContained.name, async () => {
 		it("should return false two queries not contained with set semantic", async () => {
 			const subQ = translate("SELECT ?s WHERE {?s ?p ?o. ?s1 ?p2 ?o2. ?s3 ?p3 ?o3.}");
 			const superQ = translate("SELECT ?s WHERE {?s ?p <http://example.com#1>. ?s1 ?p2 ?o2.}");
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(resp).toStrictEqual(result({ result: false, smtlib: expect.any(String) }));
+		});
+	});
+
+	describe("values", ()=>{
+		const option: ISolverOption = {
+			semantic: SEMANTIC.BAG_SET,
+			z3: Z3,
+			sources: []
+		};
+
+		it("should return contain with an example query with less value clauses", async () => {
+			const subQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					#VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+					?taxid <http://purl.uniprot.org/core/strain> <http://purl.uniprot.org/taxonomy/10090#strain-752F89669B9A8D5A40A7219990C3010B>.
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}
+		`);
+			const superQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					#VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+					?taxid <http://purl.uniprot.org/core/strain> <http://purl.uniprot.org/taxonomy/10090#strain-752F89669B9A8D5A40A7219990C3010B>.
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}`);
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(isError(resp)).toBe(false);
+			
+			expect(resp).toStrictEqual(result({
+				result: true,
+				smtlib: expect.any(String),
+				unionResponses: expect.any(Object),
+				nestedResponses: {
+					"https://sparql.uniprot.org/sparql": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
+					}
+				},
+			}));
+			
+		});
+
+		it("should return contain with an example query with the same value clauses", async () => {
+			const subQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+					?taxid <http://purl.uniprot.org/core/strain> <http://purl.uniprot.org/taxonomy/10090#strain-752F89669B9A8D5A40A7219990C3010B>.
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}
+		`);
+			const superQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}`);
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(isError(resp)).toBe(false);
+			
+			expect(resp).toStrictEqual(result({
+				result: true,
+				smtlib: expect.any(String),
+				unionResponses: expect.any(Object),
+				nestedResponses: {
+					"https://sparql.uniprot.org/sparql": {
+						result: true,
+						smtlib: expect.any(String),
+						nestedResponses: {},
+						unionResponses: expect.any(Object)
+					}
+				},
+			}));
+			
+		});
+
+		it("should return not contain with an example query with incompatible value clauses", async () => {
+			const subQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					VALUES (?rhea) { (<http://rdf.rhea-db.org/11312>) (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+					?taxid <http://purl.uniprot.org/core/strain> <http://purl.uniprot.org/taxonomy/10090#strain-752F89669B9A8D5A40A7219990C3010B>.
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}
+		`);
+			const superQ = translate(`
+				PREFIX rh: <http://rdf.rhea-db.org/>
+				PREFIX up: <http://purl.uniprot.org/core/>
+
+				SELECT ?uniprot ?mnemo ?rhea ?accession ?equation
+				WHERE {
+				SERVICE <https://sparql.uniprot.org/sparql> {
+					VALUES (?rhea) { (<http://rdf.rhea-db.org/11313>) }
+					?uniprot up:reviewed true .
+					?uniprot up:mnemonic ?mnemo .
+					?uniprot up:organism ?taxid .
+					?uniprot up:annotation/up:catalyticActivity/up:catalyzedReaction ?rhea . # where ?rhea comes from query upwards
+				}
+				?rhea rh:accession ?accession .
+				?rhea rh:equation ?equation .
+				}`);
+
+			const resp = await isContained(subQ, superQ, option);
+
+			expect(isError(resp)).toBe(false);
+			
+			expect(resp).toStrictEqual(result({
+				result: false,
+				justification: "service at url https://sparql.uniprot.org/sparql is not contained",
+				nestedResponses: {
+					"https://sparql.uniprot.org/sparql": {
+						result: false,
+						justification: "Queries does not have compatible VALUE clauses",
+					}
+				},
+			}));
+			
+		});
+
+		it('should return contain for a query with a value clause with multiple binding key', async () => {
+
+			const subQ = translate(`
+				PREFIX ex: <http://example.org/>
+
+				SELECT ?s ?age WHERE {
+				?s ex:job ?job ;
+					ex:age ?age ;
+					ex:email ?email .
+
+				VALUES (?s ?age) {
+					(ex:Alice 30)
+					(ex:Charlie 40)
+				}
+				}`);
+
+			const superQ = translate(`
+			PREFIX ex: <http://example.org/>
+
+			SELECT ?s ?age WHERE {
+			?s ex:age ?age .
+
+			VALUES (?s ?age) {
+					(ex:Alice 30)
+					(ex:Bob 25)
+					(ex:Charlie 40)
+				}
+			}`);
 
 			const resp = await isContained(subQ, superQ, option);
 
